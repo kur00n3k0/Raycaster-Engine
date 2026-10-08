@@ -77,6 +77,20 @@ static void wait_for_next_frame(const Window *window, double *nextFrame)
 	}
 }
 
+/* Start the song the map asks for (@music), or stop the music for "none". */
+static void play_map_music(Audio *audio, const Config *config, const Map *map)
+{
+	audio_stop_music(audio);
+	if (!config->music || !map->music[0])
+		return;
+	char musicPath[256];
+	snprintf(musicPath, sizeof(musicPath), "%s%s", MAP_MUSIC_DIR, map->music);
+	if (audio_play_music(audio, musicPath, config->soundfont, AUDIO_MUSIC_GAIN * config->musicVolume))
+		printf("Music: %s\n", musicPath);
+	else
+		fprintf(stderr, "Music disabled\n");
+}
+
 static void usage(const char *argv0)
 {
 	fprintf(stderr, "usage: %s [-config <path>] [-map <path>] [-warp <x> <y> <degrees>] [-nomusic]\n", argv0);
@@ -173,14 +187,7 @@ int main(int argc, char **argv)
 		return 1;
 
 	/* Each map picks its song (@music in the map file). */
-	if (config.music && game.map.music[0]) {
-		char musicPath[256];
-		snprintf(musicPath, sizeof(musicPath), "%s%s", MAP_MUSIC_DIR, game.map.music);
-		if (audio_play_music(&audio, musicPath, config.soundfont, AUDIO_MUSIC_GAIN * config.musicVolume))
-			printf("Music: %s\n", musicPath);
-		else
-			fprintf(stderr, "Music disabled\n");
-	}
+	play_map_music(&audio, &config, &game.map);
 	if (warp) {
 		game.player.pos = glm::vec2(warpX, warpY);
 		game.player.angle = warpDeg * 3.14159265f / 180.0f;
@@ -222,6 +229,11 @@ int main(int argc, char **argv)
 		while (accumulator >= tick) {
 			game_tick(&game, &input);
 			accumulator -= tick;
+		}
+		if (game.levelChanged) {
+			game.levelChanged = false;
+			printf("Level: %s\n", game.mapPath);
+			play_map_music(&audio, &config, &game.map);
 		}
 
 		audio_set_listener(&audio, game.player.pos, game.player.angle);

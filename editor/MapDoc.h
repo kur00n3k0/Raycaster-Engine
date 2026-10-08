@@ -23,13 +23,14 @@ enum {
 	DOC_UNDO_LEVELS = 256
 };
 
-enum { DOC_MUSIC_MAX = 64 };	/* MAP_MUSIC_MAX */
+enum { DOC_MUSIC_MAX = 64, DOC_NEXT_MAX = 64 };	/* MAP_MUSIC_MAX, MAP_NEXT_MAX */
 
 struct DocState {
 	int width;
 	int height;
 	std::vector<char> cells;	/* width * height, row-major */
 	char music[DOC_MUSIC_MAX];
+	char next[DOC_NEXT_MAX];
 };
 
 struct MapDoc {
@@ -41,6 +42,7 @@ struct MapDoc {
 	 * "none", or a .mid file name in assets/music/.
 	 */
 	char music[DOC_MUSIC_MAX];
+	char next[DOC_NEXT_MAX];	/* @next: following map in the same directory, "" = last level */
 	char path[512];			/* "" = not saved yet */
 	bool dirty;
 	uint32_t revision;		/* bumped on every change, to know when to revalidate */
@@ -58,15 +60,18 @@ struct Problem {
 
 struct DocStats {
 	int enemies, health, ammo, barrels, lamps;
-	int doors, secrets, players;
+	int doors, secrets, players, exits;
 	int errors, warnings;
 };
 
 /* Cell classes, matching Map.cpp's tile_from_char / thing_from_char. */
 static inline bool cell_is_wall(char c) { return c == '#' || (c >= '1' && c <= '9'); }
+static inline bool cell_is_exit(char c) { return c == 'X'; }
+/* Blocks walking: walls and the exit door (doors and secret walls open). */
+static inline bool cell_blocks(char c) { return cell_is_wall(c) || cell_is_exit(c); }
 static inline bool cell_is_thing(char c) { return c == 'E' || c == '+' || c == 'a' || c == 'b' || c == 'l'; }
 /* Non-empty tile in the game's sense: walls, doors, secret walls. */
-static inline bool cell_is_solid(char c) { return cell_is_wall(c) || c == 'D' || c == 'S'; }
+static inline bool cell_is_solid(char c) { return cell_blocks(c) || c == 'D' || c == 'S'; }
 bool cell_is_valid(char c);
 
 /* New map: solid border, floor inside, player start at (1, 1). */
@@ -88,6 +93,9 @@ static inline char doc_get(const MapDoc *doc, int x, int y)
 
 /* Changes the @music setting ("" = default). */
 void doc_set_music(MapDoc *doc, const char *music);
+
+/* Changes the @next setting ("" = last level). */
+void doc_set_next(MapDoc *doc, const char *next);
 
 /* Sets one cell. 'P' moves the player start (there is only one). Outside cells are ignored. */
 void doc_set(MapDoc *doc, int x, int y, char c);

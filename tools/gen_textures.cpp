@@ -226,6 +226,56 @@ static void tex_door(Image img)
 	}
 }
 
+/*
+ * Exit: Wolf3D's elevator, flattened onto one wall. Two brushed steel door
+ * leaves with a dark seam, a lit EXIT sign above them and a switch plate.
+ */
+static void tex_exit(Image img)
+{
+	/* 3x5 letters, drawn 2x: E X I T */
+	static const uint8_t LETTERS[4][5] = {
+		{ 7, 4, 6, 4, 7 }, { 5, 5, 2, 5, 5 }, { 7, 2, 2, 2, 7 }, { 7, 2, 2, 2, 2 },
+	};
+	for (int y = 0; y < SIZE; y++) {
+		for (int x = 0; x < SIZE; x++) {
+			int shade = 9 + noise(x / 8, y, 171, 1);	/* vertical brushing */
+			if (x < 3 || x > 60 || y < 3 || y > 60)
+				shade = (x < 2 || y < 2) ? 13 : 4;	/* frame */
+			else if (x == 31)
+				shade = 2;				/* seam between the leaves */
+			else if (x == 32)
+				shade = 12;
+			img[y][x] = col(0, shade);
+		}
+	}
+	/* Sign: dark box with green letters and a lit rim. */
+	for (int y = 6; y <= 20; y++) {
+		for (int x = 12; x <= 51; x++)
+			img[y][x] = (y == 6 || y == 20 || x == 12 || x == 51) ? col(5, 6) : col(0, 1);
+	}
+	for (int i = 0; i < 4; i++) {
+		int left = 17 + i * 8;
+		for (int r = 0; r < 5; r++) {
+			for (int c = 0; c < 3; c++) {
+				if (!(LETTERS[i][r] & (4 >> c)))
+					continue;
+				for (int py = 0; py < 2; py++) {
+					for (int px = 0; px < 2; px++)
+						img[9 + r * 2 + py][left + c * 2 + px] = col(5, py == 0 ? 15 : 13);
+				}
+			}
+		}
+	}
+	/* Switch plate on the right leaf, lever pointing up. */
+	for (int y = 34; y <= 46; y++) {
+		for (int x = 44; x <= 52; x++)
+			img[y][x] = (x == 44 || y == 34) ? col(0, 13) : (x == 52 || y == 46) ? col(0, 3) : col(0, 6);
+	}
+	for (int y = 36; y <= 40; y++)
+		img[y][48] = col(1, 13);
+	img[36][47] = col(1, 15);
+}
+
 /* Door frame: steel channel with grooves and bolts, seen on walls beside a door. */
 static void tex_doorside(Image img)
 {
@@ -552,6 +602,7 @@ int main()
 		{ "assets/textures/wall9.pcx", tex_hazard },
 		{ "assets/textures/door.pcx", tex_door },
 		{ "assets/textures/doorside.pcx", tex_doorside },
+		{ "assets/textures/exit.pcx", tex_exit },
 		{ "assets/textures/floor.pcx", tex_floor },
 		{ "assets/textures/ceiling.pcx", tex_ceiling },
 		{ "assets/sprites/enemy_stand.pcx", spr_enemy_stand },

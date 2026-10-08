@@ -418,6 +418,7 @@ static void push_secret(Game *game, int x, int y, int dx, int dy)
 	pw->moved = 0;
 	set_tile(&game->map, x, y, TILE_PUSHWALL);
 	set_tile(&game->map, x + dx, y + dy, TILE_PUSHWALL);
+	game->secretsFound++;
 	emit_sound(game, SFX_PUSHWALL, cell_centre(x, y));
 	show_message(game, "YOU FOUND A SECRET!");
 }
@@ -529,6 +530,15 @@ static void hurt_enemy(Game *game, Entity *e, int damage)
  * Use acts on the cell directly ahead along the dominant axis of the view,
  * like Wolf3D, and pushes in that cardinal direction.
  */
+/* Exit used: freeze the level and show the intermission (or the end of the episode). */
+static void complete_level(Game *game)
+{
+	game->phase = game->map.next[0] ? PHASE_INTERMISSION : PHASE_FINISHED;
+	game->phaseTime = 0.0f;
+	game->message = nullptr;
+	emit_sound(game, SFX_EXIT, game->player.pos);
+}
+
 static void player_use(Game *game)
 {
 	const Player *p = &game->player;
@@ -547,6 +557,8 @@ static void player_use(Game *game)
 		use_door(game, map_door(&game->map, x, y));
 	else if (tile == TILE_SECRET)
 		push_secret(game, x, y, dx, dy);
+	else if (tile == TILE_EXIT)
+		complete_level(game);
 }
 
 /* Hitscan along the view direction: the nearest living enemy the ray passes close enough to. */
@@ -619,18 +631,26 @@ static void pick_up_items(Game *game)
 			show_message(game, "PICKED UP AMMO");
 		}
 		e->active = false;
+		if (i < game->mapEntities)
+			game->itemsTaken++;
 		p->bonusFlash += BONUS_ADD;
 		emit_sound(game, SFX_PICKUP, e->pos);
 	}
 }
 
-static void update_player(Game *game, const Input *input)
+/* Muzzle flash and palette flashes wind down every tick, whatever else is going on. */
+static void fade_player_flashes(Player *p)
 {
-	Player *p = &game->player;
 	p->fireCooldown -= TICK;
 	p->flashTime -= TICK;
 	p->damageFlash = p->damageFlash > FLASH_FADE * TICK ? p->damageFlash - FLASH_FADE * TICK : 0.0f;
 	p->bonusFlash = p->bonusFlash > FLASH_FADE * TICK ? p->bonusFlash - FLASH_FADE * TICK : 0.0f;
+}
+
+static void update_player(Game *game, const Input *input)
+{
+	Player *p = &game->player;
+	fade_player_flashes(p);
 	if (p->dead)
 		return;
 
@@ -813,9 +833,11 @@ static void spawn_things(Game *game)
 			break;
 		case THING_HEALTH:
 			e->amount = HEALTH_PICKUP;
+			game->itemsTotal++;
 			break;
 		case THING_AMMO:
 			e->amount = AMMO_PICKUP;
+			game->itemsTotal++;
 			break;
 		default:
 			break;
@@ -823,7 +845,8 @@ static void spawn_things(Game *game)
 	}
 }
 
-bool game_init(Game *game, const char *mapPath)
+/* Fresh level state for mapPath. Keeps nothing but what the caller restores afterwards. */
+static bool load_level(Game *game, const char *mapPath)
 {
 	memset(game, 0, sizeof(*game));
 	snprintf(game->mapPath, sizeof(game->mapPath), "%s", mapPath);
@@ -842,8 +865,56 @@ bool game_init(Game *game, const char *mapPath)
 
 	game->rng = RNG_SEED;
 	spawn_things(game);
+	game->mapEntities = game->entityCount;
+	for (int i = 0; i < game->map.width * game->map.height; i++) {
+		if (game->map.tiles[i] == TILE_SECRET)
+			game->secretsTotal++;
+	}
 	update_paths(game);
 	return true;
+}
+
+bool game_init(Game *game, const char *mapPath)
+{
+	if (!load_level(game, mapPath))
+		return false;
+	snprintf(game->firstMapPath, sizeof(game->firstMapPath), "%s", mapPath);
+	return true;
+}
+
+/* load_level, keeping the episode start. Exits if the map cannot be loaded. */
+static void reload(Game *game, const char *path)
+{
+	char first[MAP_PATH_MAX];
+	snprintf(first, sizeof(first), "%s", game->firstMapPath);
+	game_shutdown(game);
+	if (!load_level(game, path)) {
+		fprintf(stderr, "Cannot load %s\n", path);
+		exit(1);
+	}
+	snprintf(game->firstMapPath, sizeof(game->firstMapPath), "%s", first);
+	game->useHeld = true;	/* the press that got us here must not also open a door */
+}
+
+/* @next is relative to the current map's directory. */
+static void next_map_path(const Game *game, char *out, size_t size)
+{
+	const char *slash = strrchr(game->mapPath, '/');
+	int dirLen = slash ? (int)(slash - game->mapPath + 1) : 0;
+	snprintf(out, size, "%.*s%s", dirLen, game->mapPath, game->map.next);
+}
+
+/* Intermission over: next map, carrying health and ammo over like Wolf3D. */
+static void next_level(Game *game)
+{
+	char path[MAP_PATH_MAX];
+	next_map_path(game, path, sizeof(path));
+	int health = game->player.health;
+	int ammo = game->player.ammo;
+	reload(game, path);
+	game->player.health = health;
+	game->player.ammo = ammo;
+	game->levelChanged = true;
 }
 
 void game_shutdown(Game *game)
@@ -860,18 +931,37 @@ static void restart(Game *game)
 {
 	char path[MAP_PATH_MAX];
 	snprintf(path, sizeof(path), "%s", game->mapPath);
-	game_shutdown(game);
-	if (!game_init(game, path)) {
-		fprintf(stderr, "Cannot reload %s\n", path);
-		exit(1);
-	}
-	game->useHeld = true;	/* the press that restarted must not also open a door */
+	reload(game, path);
+}
+
+/* After the last map: the whole episode again, from the first map with fresh stats. */
+static void restart_episode(Game *game)
+{
+	char path[MAP_PATH_MAX];
+	snprintf(path, sizeof(path), "%s", game->firstMapPath);
+	reload(game, path);
+	game->levelChanged = true;
 }
 
 void game_tick(Game *game, const Input *input)
 {
 	bool usePressed = input->use && !game->useHeld;
 	game->useHeld = input->use;
+
+	/* Between levels the world is frozen; only the screen's own timer and the flashes run. */
+	if (game->phase != PHASE_PLAYING) {
+		fade_player_flashes(&game->player);
+		game->phaseTime += TICK;
+		if (usePressed && game->phaseTime >= GAME_INTERMISSION_DELAY) {
+			if (game->phase == PHASE_INTERMISSION)
+				next_level(game);
+			else
+				restart_episode(game);
+		}
+		return;
+	}
+	if (!game->player.dead)
+		game->levelTicks++;
 
 	if (game->player.dead && usePressed) {
 		restart(game);

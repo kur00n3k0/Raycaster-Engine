@@ -11,6 +11,9 @@ enum {
 	GAME_TICK_RATE = 70	/* Hz, Doom's 35 Hz doubled */
 };
 
+/* Seconds before Use leaves a level-end screen (so a held key cannot skip it). */
+static const float GAME_INTERMISSION_DELAY = 0.75f;
+
 /* One tick's worth of input, sampled by main from the window. */
 struct Input {
 	bool forward;
@@ -78,9 +81,29 @@ struct SoundEvent {
 	glm::vec2 pos;
 };
 
+/* Where the game is: playing, or on a screen between levels. */
+enum GamePhase : uint8_t {
+	PHASE_PLAYING,
+	PHASE_INTERMISSION,	/* exit used, @next map waiting: Use continues */
+	PHASE_FINISHED		/* exit used on the last map: Use starts the episode again */
+};
+
 struct Game {
 	Map map;
 	char mapPath[MAP_PATH_MAX];	/* kept for restarting the level */
+	char firstMapPath[MAP_PATH_MAX];	/* episode start, for playing again after the last map */
+	uint8_t phase;			/* GamePhase */
+	float phaseTime;		/* seconds since the phase began (debounces Use on the screens) */
+	bool levelChanged;		/* a different map was loaded: main switches the music, then clears it */
+
+	/* Level statistics for the intermission, Wolf3D style. */
+	uint32_t levelTicks;
+	int secretsTotal;
+	int secretsFound;
+	int itemsTotal;			/* medkits and ammo placed by the map (not enemy drops) */
+	int itemsTaken;
+	int mapEntities;		/* entities [0, mapEntities) came from the map */
+
 	Player player;
 	Entity entities[MAX_ENTITIES];
 	int entityCount;
@@ -101,6 +124,7 @@ struct Game {
 	int soundCount;
 };
 
+/* Starts the episode on mapPath (also remembered as the place to start again from). */
 bool game_init(Game *game, const char *mapPath);
 void game_shutdown(Game *game);
 

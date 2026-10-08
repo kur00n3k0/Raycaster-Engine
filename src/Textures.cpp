@@ -147,6 +147,10 @@ bool textures_load_walls(WallTextures *walls, const Palette *pal)
 			return false;
 		}
 	}
+	if (!texture_load_pcx(&walls->tile[TILE_EXIT], "assets/textures/exit.pcx", pal, false)) {
+		textures_free_walls(walls);
+		return false;
+	}
 	if (!texture_load_pcx(&walls->doorJamb, "assets/textures/doorside.pcx", pal, false)) {
 		textures_free_walls(walls);
 		return false;
@@ -156,7 +160,7 @@ bool textures_load_walls(WallTextures *walls, const Palette *pal)
 
 void textures_free_walls(WallTextures *walls)
 {
-	for (int t = 0; t <= TILE_DOOR; t++)
+	for (int t = 0; t <= TILE_EXIT; t++)
 		texture_free(&walls->tile[t]);
 	texture_free(&walls->doorJamb);
 }

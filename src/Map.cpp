@@ -22,6 +22,9 @@ static bool tile_from_char(char c, uint8_t *tile)
 	case 'S':
 		*tile = TILE_SECRET;
 		return true;
+	case 'X':
+		*tile = TILE_EXIT;
+		return true;
 	default:
 		if (c >= '1' && c <= '9') {
 			*tile = (uint8_t)(c - '0');
@@ -52,6 +55,12 @@ bool map_music_name_ok(const char *name)
 	return n > 4 && n < MAP_MUSIC_MAX && !strchr(name, '/') && strcasecmp(name + n - 4, ".mid") == 0;
 }
 
+bool map_next_name_ok(const char *name)
+{
+	size_t n = strlen(name);
+	return n > 4 && n < MAP_NEXT_MAX && !strchr(name, '/') && strcasecmp(name + n - 4, ".txt") == 0;
+}
+
 /* "@name value" line before the grid. False on an unknown name or bad value. */
 static bool apply_setting(Map *map, const char *path, int lineNo, char *line)
 {
@@ -71,6 +80,15 @@ static bool apply_setting(Map *map, const char *path, int lineNo, char *line)
 			return false;
 		}
 		snprintf(map->music, sizeof(map->music), "%s", strcmp(value, "none") == 0 ? "" : value);
+		return true;
+	}
+	if (strcmp(name, "next") == 0) {
+		if (!map_next_name_ok(value)) {
+			fprintf(stderr, "%s:%d: @next needs a .txt map file name in the same directory\n",
+				path, lineNo);
+			return false;
+		}
+		snprintf(map->next, sizeof(map->next), "%s", value);
 		return true;
 	}
 	fprintf(stderr, "%s:%d: unknown map setting '@%s'\n", path, lineNo, name);

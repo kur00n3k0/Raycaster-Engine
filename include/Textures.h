@@ -34,11 +34,12 @@ bool texture_load_pcx(Texture *tex, const char *path, const Palette *pal, bool t
 void texture_free(Texture *tex);
 
 /*
- * Wall textures indexed by tile: 1-9 = wall1..wall9.pcx, TILE_DOOR = door.pcx.
+ * Wall textures indexed by tile: 1-9 = wall1..wall9.pcx, TILE_DOOR = door.pcx,
+ * TILE_EXIT = exit.pcx (TILE_SECRET and TILE_PUSHWALL slots stay empty).
  * doorJamb (doorside.pcx) is drawn on walls seen from inside a door cell.
  */
 struct WallTextures {
-	Texture tile[TILE_DOOR + 1];
+	Texture tile[TILE_EXIT + 1];
 	Texture doorJamb;
 };
 

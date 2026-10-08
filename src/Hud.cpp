@@ -218,16 +218,22 @@ static void draw_status_bar(Video *video, const Raycaster *rc, const Game *game)
 		p->ammo > 0 ? YELLOW : RED);
 }
 
-/* Dim the 3D view through a light table and put the restart prompt on it. */
-static void draw_death_screen(Video *video, const Raycaster *rc, const RenderAssets *assets)
+/* Darken the 3D view through a light table, for the screens drawn over it. */
+static void dim_view(Video *video, const Raycaster *rc, const RenderAssets *assets)
 {
-	const int s = video->width / VIDEO_BASE_WIDTH;
 	const uint8_t *dim = assets->colormaps->level[DEAD_DARKEN];
 	for (int y = 0; y < rc->height; y++) {
 		uint8_t *row = video->fb + y * video->pitch;
 		for (int x = 0; x < rc->width; x++)
 			row[x] = dim[row[x]];
 	}
+}
+
+/* Dim the 3D view and put the restart prompt on it. */
+static void draw_death_screen(Video *video, const Raycaster *rc, const RenderAssets *assets)
+{
+	const int s = video->width / VIDEO_BASE_WIDTH;
+	dim_view(video, rc, assets);
 	const char *title = "YOU DIED";
 	const char *hint = "PRESS SPACE TO RESTART";
 	int cy = rc->height / 2;
@@ -235,11 +241,64 @@ static void draw_death_screen(Video *video, const Raycaster *rc, const RenderAss
 	draw_text_shadow(video, (rc->width - text_width(hint, s)) / 2, cy + 6 * s, hint, s, s, WHITE);
 }
 
+static int percent(int part, int total)
+{
+	return total > 0 ? part * 100 / total : 100;
+}
+
+/*
+ * Wolf3D's "floor complete" tally on the dimmed view: kill, secret and item
+ * ratios and the time taken. After the last map it says so and offers to
+ * play the episode again.
+ */
+static void draw_level_end(Video *video, const Raycaster *rc, const Game *game, const RenderAssets *assets)
+{
+	const int s = video->width / VIDEO_BASE_WIDTH;
+	const bool last = game->phase == PHASE_FINISHED;
+	dim_view(video, rc, assets);
+
+	const char *title = last ? "EPISODE COMPLETE!" : "FLOOR COMPLETE";
+	int y = 14 * s;
+	int titleScale = last ? 2 : 3;
+	draw_text_shadow(video, (rc->width - text_width(title, titleScale * s)) / 2, y, title,
+		titleScale * s, titleScale * s, last ? YELLOW : GREEN);
+	y += (titleScale * 7 + 14) * s;
+
+	char value[32];
+	unsigned seconds = game->levelTicks / GAME_TICK_RATE;
+	struct Row { const char *label; int pct; };
+	const Row rows[] = {
+		{ "KILLS", percent(game->enemiesKilled, game->enemiesTotal) },
+		{ "SECRETS", percent(game->secretsFound, game->secretsTotal) },
+		{ "ITEMS", percent(game->itemsTaken, game->itemsTotal) },
+		{ "TIME", -1 },
+	};
+	const int left = rc->width / 2 - 80 * s, right = rc->width / 2 + 80 * s;
+	for (const Row &r : rows) {
+		if (r.pct >= 0)
+			snprintf(value, sizeof(value), "%d%%", r.pct);
+		else
+			snprintf(value, sizeof(value), "%u:%02u", seconds / 60, seconds % 60);
+		uint8_t color = r.pct == 100 ? GREEN : WHITE;
+		draw_text_shadow(video, left, y, r.label, 2 * s, 2 * s, LABEL);
+		draw_text_shadow(video, right - text_width(value, 2 * s), y, value, 2 * s, 2 * s, color);
+		y += 20 * s;
+	}
+
+	/* The prompt appears once Use is accepted, so a held key does not skip the tally. */
+	if (game->phaseTime >= GAME_INTERMISSION_DELAY) {
+		const char *hint = last ? "PRESS SPACE TO PLAY AGAIN" : "PRESS SPACE TO CONTINUE";
+		draw_text_shadow(video, (rc->width - text_width(hint, s)) / 2, y + 4 * s, hint, s, s, YELLOW);
+	}
+}
+
 void hud_draw(Video *video, const Raycaster *rc, const Game *game, const RenderAssets *assets,
 	const char *stats)
 {
 	const int s = video->width / VIDEO_BASE_WIDTH;
-	if (game->player.dead)
+	if (game->phase != PHASE_PLAYING)
+		draw_level_end(video, rc, game, assets);
+	else if (game->player.dead)
 		draw_death_screen(video, rc, assets);
 	else
 		draw_weapon(video, rc, game, assets);

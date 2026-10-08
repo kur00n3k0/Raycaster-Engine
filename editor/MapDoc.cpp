@@ -37,6 +37,7 @@ void doc_new(MapDoc *doc, int width, int height)
 	}
 	doc->cells[1 * width + 1] = 'P';
 	doc->music[0] = '\0';
+	doc->next[0] = '\0';
 	doc->path[0] = '\0';
 	doc->dirty = false;
 	doc->revision++;
@@ -59,17 +60,20 @@ bool doc_load(MapDoc *doc, const char *path, char *err, int errSize)
 	bool tooLong = false;
 	int dropped = 0;
 	doc->music[0] = '\0';
+	doc->next[0] = '\0';
 	while (fgets(line, sizeof(line), f)) {
 		size_t len = strcspn(line, "\r\n");
 		line[len] = '\0';
 		if (len == 0)
 			continue;
 		if (line[0] == '@') {
-			/* Map settings. Only @music exists; anything else would stop the game loading the map. */
+			/* Map settings (@music, @next); anything else would stop the game loading the map. */
 			char name[32] = "", value[DOC_MUSIC_MAX + 32] = "";
-			if (rows.empty() && sscanf(line, "@%31s %95s", name, value) >= 1
-				&& strcmp(name, "music") == 0 && strlen(value) < DOC_MUSIC_MAX)
+			bool ok = rows.empty() && sscanf(line, "@%31s %95s", name, value) >= 1;
+			if (ok && strcmp(name, "music") == 0 && strlen(value) < DOC_MUSIC_MAX)
 				snprintf(doc->music, sizeof(doc->music), "%s", value);
+			else if (ok && strcmp(name, "next") == 0 && strlen(value) < DOC_NEXT_MAX)
+				snprintf(doc->next, sizeof(doc->next), "%s", value);
 			else
 				dropped++;
 			continue;
@@ -128,6 +132,8 @@ bool doc_save(MapDoc *doc, const char *path)
 		return false;
 	if (doc->music[0])
 		fprintf(f, "@music %s\n", doc->music);
+	if (doc->next[0])
+		fprintf(f, "@next %s\n", doc->next);
 	for (int y = 0; y < doc->height; y++) {
 		fwrite(&doc->cells[(size_t)y * (size_t)doc->width], 1, (size_t)doc->width, f);
 		fputc('\n', f);
@@ -146,6 +152,14 @@ void doc_set_music(MapDoc *doc, const char *music)
 	if (strcmp(doc->music, music) == 0)
 		return;
 	snprintf(doc->music, sizeof(doc->music), "%s", music);
+	changed(doc);
+}
+
+void doc_set_next(MapDoc *doc, const char *next)
+{
+	if (strcmp(doc->next, next) == 0)
+		return;
+	snprintf(doc->next, sizeof(doc->next), "%s", next);
 	changed(doc);
 }
 
@@ -231,6 +245,7 @@ static DocState snapshot(const MapDoc *doc)
 	s.height = doc->height;
 	s.cells = doc->cells;
 	memcpy(s.music, doc->music, sizeof(s.music));
+	memcpy(s.next, doc->next, sizeof(s.next));
 	return s;
 }
 
@@ -240,6 +255,7 @@ static void restore(MapDoc *doc, DocState *s)
 	doc->height = s->height;
 	doc->cells.swap(s->cells);
 	memcpy(doc->music, s->music, sizeof(doc->music));
+	memcpy(doc->next, s->next, sizeof(doc->next));
 	changed(doc);
 }
 
@@ -260,7 +276,7 @@ void doc_end_edit(MapDoc *doc)
 	doc->editing = false;
 	const DocState &before = doc->undo.back();
 	if (before.width == doc->width && before.height == doc->height && before.cells == doc->cells
-		&& strcmp(before.music, doc->music) == 0) {
+		&& strcmp(before.music, doc->music) == 0 && strcmp(before.next, doc->next) == 0) {
 		doc->undo.pop_back();
 		return;
 	}
@@ -323,7 +339,7 @@ void doc_validate(const MapDoc *doc, std::vector<Problem> *problems, DocStats *s
 		for (int x = 0; x < w; x++) {
 			char c = doc_get(doc, x, y);
 			bool border = x == 0 || y == 0 || x == w - 1 || y == h - 1;
-			if (border && !cell_is_wall(c))
+			if (border && !cell_blocks(c))
 				add(problems, x, y, true, "Border must be solid wall");
 			switch (c) {
 			case 'E': stats->enemies++; break;
@@ -332,6 +348,7 @@ void doc_validate(const MapDoc *doc, std::vector<Problem> *problems, DocStats *s
 			case 'b': stats->barrels++; break;
 			case 'l': stats->lamps++; break;
 			case 'S': stats->secrets++; break;
+			case 'X': stats->exits++; break;
 			case 'P':
 				stats->players++;
 				playerX = x;
@@ -385,7 +402,7 @@ void doc_validate(const MapDoc *doc, std::vector<Problem> *problems, DocStats *s
 			static const int DX[4] = { 1, -1, 0, 0 }, DY[4] = { 0, 0, 1, -1 };
 			for (int d = 0; d < 4; d++) {
 				int nx = cx + DX[d], ny = cy + DY[d];
-				if (!doc_inside(doc, nx, ny) || cell_is_wall(doc_get(doc, nx, ny)))
+				if (!doc_inside(doc, nx, ny) || cell_blocks(doc_get(doc, nx, ny)))
 					continue;
 				int n = ny * w + nx;
 				if ((*reach)[(size_t)n])
@@ -406,6 +423,46 @@ void doc_validate(const MapDoc *doc, std::vector<Problem> *problems, DocStats *s
 	}
 	if (stats->enemies == 0)
 		add(problems, -1, -1, false, "No guards on the map");
+
+	/* Exits: the level needs one the player can walk up to. */
+	if (stats->exits == 0)
+		add(problems, -1, -1, false, "No exit door (X): the level cannot be finished");
+	if (stats->players == 1) {
+		for (int y = 0; y < h; y++) {
+			for (int x = 0; x < w; x++) {
+				if (!cell_is_exit(doc_get(doc, x, y)))
+					continue;
+				bool reachable = false;
+				static const int DX[4] = { 1, -1, 0, 0 }, DY[4] = { 0, 0, 1, -1 };
+				for (int d = 0; d < 4; d++) {
+					int nx = x + DX[d], ny = y + DY[d];
+					if (doc_inside(doc, nx, ny) && (*reach)[(size_t)(ny * w + nx)])
+						reachable = true;
+				}
+				if (!reachable)
+					add(problems, x, y, false, "Exit cannot be reached from the start");
+			}
+		}
+	}
+
+	/* @next: a bad name stops the game; a missing file fails when the exit is used. */
+	if (doc->next[0]) {
+		if (!map_next_name_ok(doc->next)) {
+			add(problems, -1, -1, true, "@next must be a .txt map file name");
+		} else {
+			const char *slash = strrchr(doc->path, '/');
+			int dirLen = slash ? (int)(slash - doc->path + 1) : 0;
+			char path[600];
+			snprintf(path, sizeof(path), "%.*s%s", dirLen, doc->path, doc->next);
+			FILE *f = doc->path[0] ? fopen(path, "rb") : nullptr;
+			if (f)
+				fclose(f);
+			else if (doc->path[0])
+				add(problems, -1, -1, true, "Next level %s not found", path);
+			if (stats->exits == 0)
+				add(problems, -1, -1, false, "A next level is set but there is no exit to reach it");
+		}
+	}
 
 	/* Errors first, then warnings, each in reading order. */
 	std::vector<Problem> sorted;

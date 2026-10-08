@@ -266,7 +266,6 @@ and prove equivalence with a test before switching it on.
   clockwise on the map (towards +y). Camera right = (-dir.y, dir.x).
 - Projection: `focalY = focalX / pixelAspect` (1.2 at 320x200) so walls are not stretched
   by the 4:3 display. A 1-unit wall at distance d is `focalY / d` rows tall.
-- Doors (`D`) and secret walls (`S`) are plain solid tiles until step 7.
 - `main.cpp` reads `Input` from the window once per frame and runs `game_tick` at a fixed
   70 Hz; `game_tick` must stay deterministic given the same `Input`.
 - Default palette: index = ramp * 16 + shade (ramp 0 gray, 1-15 hues, shade 15 brightest).
@@ -297,4 +296,18 @@ and prove equivalence with a test before switching it on.
   `doc_validate` checks it (bad name = error, missing file = warning). The editor previews
   through the game's own Audio/Midi/Synth code, using `raycaster.cfg`'s SoundFont and volume.
   New settings: add to `apply_setting`, `doc_load`/`doc_save`, `DocState` and the README.
+- Objective (user request): `X` = `TILE_EXIT`, solid (`map_blocks`, rays use `tile[TILE_EXIT]` =
+  exit.pcx), allowed in the border. Use on it -> `complete_level`: `Game::phase` becomes
+  `PHASE_INTERMISSION` (map has `@next`) or `PHASE_FINISHED` (last map). Outside `PHASE_PLAYING`
+  the world is frozen; Use after `GAME_INTERMISSION_DELAY` loads the next map (`next_level`,
+  path relative to the current map's directory, health/ammo carried over) or restarts the
+  episode from `firstMapPath`. Both set `levelChanged`, which main uses to switch music.
+  `load_level` memsets the Game, so `reload` saves/restores `firstMapPath`; anything else that
+  must survive a level change needs the same treatment. Tally counters: `levelTicks`,
+  `secretsFound/Total`, `itemsTaken/Total` (map items only: entities `< mapEntities`), kills.
+  HUD draws the tally in `draw_level_end`. Episode: e1m1 -> e1m2 (last). Editor: `X` brush,
+  Next level combo (`MapDoc::next`, in undo), `cell_blocks` for walls + exit, missing/unreachable
+  exit warnings, missing @next file is an error (the game would exit on it).
+- Background test processes ignore SIGINT (non-interactive `&`): stop the game/editor with
+  `pkill -TERM -x raycaster` / `map_editor`, or stale windows get screenshotted.
 - See `README.txt` for the user-facing description.

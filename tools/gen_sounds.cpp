@@ -234,6 +234,30 @@ static Buffer sfx_pickup()
 	return b;
 }
 
+/* Exit switch: a clunk, then a two-note elevator chime (sines with a decaying tail). */
+static Buffer sfx_exit()
+{
+	Buffer b = make_buffer(1.1f);
+	const float PI2 = 6.2831853f;
+	for (int i = 0; i < b.count; i++) {
+		float t = (float)i / RATE;
+		float v = 0.0f;
+		if (t < 0.06f)
+			v += 0.7f * square(90.0f * t, 0.5f) * envelope(t, 0.06f, 0.002f, 0.04f);
+		static const float START[2] = { 0.12f, 0.42f };
+		static const float HZ[2] = { 659.25f, 523.25f };	/* E5, C5: ding-dong */
+		for (int n = 0; n < 2; n++) {
+			float lt = t - START[n];
+			if (lt < 0.0f)
+				continue;
+			float env = fminf(1.0f, lt / 0.005f) * expf(-lt * 4.0f);
+			v += 0.45f * env * (sinf(PI2 * HZ[n] * lt) + 0.3f * sinf(PI2 * HZ[n] * 2.0f * lt));
+		}
+		b.s[i] = v;
+	}
+	return b;
+}
+
 /* ------------------------------------------------------------------------- */
 /* Music: an 8-bar minor-key loop as a Standard MIDI File                    */
 /* ------------------------------------------------------------------------- */
@@ -509,6 +533,7 @@ int main()
 		{ "assets/sounds/enemy_death.wav", sfx_enemy_death, 0.85f },
 		{ "assets/sounds/player_hurt.wav", sfx_player_hurt, 0.8f },
 		{ "assets/sounds/pickup.wav", sfx_pickup, 0.6f },
+		{ "assets/sounds/exit.wav", sfx_exit, 0.8f },
 	};
 	for (const Entry &e : entries) {
 		Buffer b = e.make();

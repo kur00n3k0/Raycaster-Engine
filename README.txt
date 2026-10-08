@@ -34,7 +34,14 @@ The game itself does not use ImGui; only the map editor does.
 
 GAMEPLAY
 --------
-Clear the level of guards. You start with 100% health and 12 bullets.
+Find the exit door (the steel door with the green EXIT sign) and press
+Space in front of it to finish the floor. The guards are in your way.
+You start with 100% health and 12 bullets.
+
+  Episode 1 has two floors: E1M1 and E1M2. After each floor a tally shows
+  how many guards you killed, secrets you found and items you picked up,
+  and how long it took. Health and ammo carry over to the next floor.
+  After the last floor, Space starts the episode again.
 
   Guards stand still until they see you or hear a shot nearby. Then they
   hunt you down, find their way around walls and open doors on their own,
@@ -148,7 +155,7 @@ Tools:
   I  Pick     take the brush from a cell
 
 Brushes (the same characters as the map file):
-  1-9 walls, D door, S secret wall, . floor, P player start,
+  1-9 walls, D door, X exit, S secret wall, . floor, P player start,
   E guard, + medkit, a ammo, b barrel, l lamp
 
 Keys:
@@ -159,6 +166,10 @@ Keys:
   Home                       fit the map in the view
   T / H                      textures / grid on or off
   Ctrl+Q                     quit (asks before losing changes)
+
+Next level: pick the map that follows this one's exit in Properties
+(None = last level). Problems warns when a map has no exit, the exit
+cannot be reached, or the next map is missing.
 
 Music: pick the map's song in Properties (Default, None or any .mid in
 assets/music) and press Preview to hear it with the game's SoundFont. It is
@@ -223,6 +234,8 @@ FEATURES (ROADMAP)
   [x] 10. Polish: palette flashes, config file, profiling
   [x] Map editor: top-down, docked ImGui panels, draw walls, place
       guards and items, live checks, play test with F5
+  [x] Objective: exit door, floor complete tally, next level (@next),
+      episode of two floors
 
 
 DIRECTORY LAYOUT
@@ -247,13 +260,14 @@ Maps are plain text files. Each character is one grid cell:
   S  secret push wall  P    player start (facing east)
   E  enemy             +    health
   a  ammo              b    barrel
-  l  hanging lamp
+  l  hanging lamp     X    exit door (use it to finish the level)
 
   The outer border must be solid wall (not a door or secret wall) so rays
   always hit something. A door needs walls on exactly two opposite sides;
   that decides which way it slides. Doors close by themselves after a few
   seconds. A secret wall looks like wall texture 1 and slides up to two
-  tiles away from the player when pushed.
+  tiles away from the player when pushed. The exit door is solid like a
+  wall and can sit in the border; press Space while facing it.
   Every row must be the same width. The game starts on
   assets/maps/e1m1.txt.
 
@@ -261,14 +275,17 @@ Maps are plain text files. Each character is one grid cell:
 
     @music e1m2.mid     song from assets/music/, or "none" for silence;
                         without the line the map plays e1m1.mid
+    @next e1m2.txt      map loaded after this one's exit, from the same
+                        folder; without it this is the last map
 
   An unknown setting, or one after the grid, is an error.
 
   @music e1m2.mid
+  @next e1m3.txt
   ##########
   #P.......#
   #..##D##.#
-  #..#..E#.#
+  #..#..E#.X
   #..S.+.#.#
   ##########
 

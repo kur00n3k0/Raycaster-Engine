@@ -18,7 +18,8 @@ enum Tile : uint8_t {
 	TILE_WALL_LAST = 9,
 	TILE_DOOR = 10,
 	TILE_SECRET = 11,	/* push wall; looks like wall texture 1 */
-	TILE_PUSHWALL = 12	/* cell covered by the moving push wall (see Pushwall) */
+	TILE_PUSHWALL = 12,	/* cell covered by the moving push wall (see Pushwall) */
+	TILE_EXIT = 13		/* exit door: solid; using it finishes the level */
 };
 
 /*
@@ -72,9 +73,11 @@ enum { MAP_MAX_THINGS = 256 };
 /*
  * Per-map settings come before the grid as "@name value" lines ('@' is not a
  * map character). @music picks the song: a .mid file name in MAP_MUSIC_DIR, or
- * "none". Without it the map gets MAP_MUSIC_DEFAULT.
+ * "none". Without it the map gets MAP_MUSIC_DEFAULT. @next names the map that
+ * follows when the exit is used: a .txt file in the same directory as this
+ * map. Without it this is the last level of the episode.
  */
-enum { MAP_MUSIC_MAX = 64 };
+enum { MAP_MUSIC_MAX = 64, MAP_NEXT_MAX = 64 };
 #define MAP_MUSIC_DIR "assets/music/"
 #define MAP_MUSIC_DEFAULT "e1m1.mid"
 
@@ -101,10 +104,14 @@ struct Map {
 	float playerAngle;	/* radians, 0 = east, grows clockwise (towards +y) */
 
 	char music[MAP_MUSIC_MAX];	/* file in MAP_MUSIC_DIR, "" = no music */
+	char next[MAP_NEXT_MAX];	/* next map's file name, "" = last level */
 };
 
 /* A valid @music value: "none" or a plain .mid file name (no directories). */
 bool map_music_name_ok(const char *name);
+
+/* A valid @next value: a plain .txt file name (no directories). */
+bool map_next_name_ok(const char *name);
 
 /* Returns false and prints why on a malformed map. */
 bool map_load(Map *map, const char *path);

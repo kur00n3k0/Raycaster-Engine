@@ -82,7 +82,7 @@ static const ToolInfo TOOLS[TOOL_COUNT] = {
 	{ "Pick", 'i', "Take the brush from a cell (also Alt+click)" },
 };
 
-enum BrushKind { BRUSH_WALL, BRUSH_DOOR, BRUSH_SECRET, BRUSH_FLOOR, BRUSH_PLAYER, BRUSH_THING };
+enum BrushKind { BRUSH_WALL, BRUSH_DOOR, BRUSH_EXIT, BRUSH_SECRET, BRUSH_FLOOR, BRUSH_PLAYER, BRUSH_THING };
 
 struct Brush {
 	char cell;		/* map character */
@@ -103,6 +103,7 @@ static const Brush BRUSHES[] = {
 	{ '8', "Wall 8", '8', BRUSH_WALL, 8 },
 	{ '9', "Wall 9", '9', BRUSH_WALL, 9 },
 	{ 'D', "Door", 'd', BRUSH_DOOR, TILE_DOOR },
+	{ 'X', "Exit door", 'x', BRUSH_EXIT, TILE_EXIT },
 	{ 'S', "Secret wall", 's', BRUSH_SECRET, 1 },
 	{ '.', "Floor (eraser)", '.', BRUSH_FLOOR, 0 },
 	{ 'P', "Player start", 'p', BRUSH_PLAYER, 0 },
@@ -136,7 +137,7 @@ struct GLImage {
 
 struct Art {
 	bool loaded;
-	GLImage wall[TILE_DOOR + 1];	/* 1-9, TILE_DOOR */
+	GLImage wall[TILE_EXIT + 1];	/* 1-9, TILE_DOOR, TILE_EXIT */
 	GLImage floor;
 	GLImage sprite[SPR_COUNT];
 };
@@ -186,6 +187,7 @@ static bool art_load(Art *art)
 		return false;
 	for (int t = TILE_WALL_FIRST; t <= TILE_DOOR; t++)
 		art->wall[t] = upload(&walls.tile[t], &pal);
+	art->wall[TILE_EXIT] = upload(&walls.tile[TILE_EXIT], &pal);
 	art->floor = upload(&flats.floor, &pal);
 	for (int s = 0; s < SPR_COUNT; s++)
 		art->sprite[s] = upload(&sprites.sprite[s], &pal);
@@ -595,8 +597,8 @@ static void draw_cell(ImDrawList *dl, const Editor *ed, char c, int x, int y, Im
 	ImU32 tint = IM_COL32(255, 255, 255, (int)(alpha * 255.0f));
 	ImU32 floorCol = alpha < 1.0f ? IM_COL32(44, 44, 50, (int)(alpha * 255.0f)) : FLOOR_COLOR;
 
-	if (cell_is_wall(c)) {
-		int tile = c == '#' ? 1 : c - '0';
+	if (cell_blocks(c)) {
+		int tile = c == '#' ? 1 : c == 'X' ? TILE_EXIT : c - '0';
 		if (ed->showTextures && z >= 8.0f)
 			dl->AddImage(tex_ref(art->wall[tile]), a, b, ImVec2(0, 0), ImVec2(1, 1), tint);
 		else
@@ -790,7 +792,7 @@ static void draw_map_window(Editor *ed)
 			cell_rect(x, y, &a, &b);
 			char c = doc_get(doc, x, y);
 			draw_cell(dl, ed, c, x, y, a, b, 1.0f);
-			if (ed->showReach && !cell_is_wall(c) && !ed->reach.empty() && !ed->reach[(size_t)(y * doc->width + x)])
+			if (ed->showReach && !cell_blocks(c) && !ed->reach.empty() && !ed->reach[(size_t)(y * doc->width + x)])
 				dl->AddRectFilled(a, b, IM_COL32(200, 40, 40, 70));
 		}
 	}
@@ -910,6 +912,56 @@ static void start_preview(Editor *ed)
 	set_status(ed, "Playing %s", song);
 }
 
+/* .txt maps next to the edited one (or in assets/maps for a new map), for the Next level combo. */
+static std::vector<std::string> list_sibling_maps(const MapDoc *doc)
+{
+	std::vector<std::string> out;
+	char dir[512];
+	const char *slash = strrchr(doc->path, '/');
+	if (slash)
+		snprintf(dir, sizeof(dir), "%.*s", (int)(slash - doc->path), doc->path);
+	else
+		snprintf(dir, sizeof(dir), "%s", doc->path[0] ? "." : MAP_DIR);
+	DIR *d = opendir(dir);
+	if (!d)
+		return out;
+	const char *self = slash ? slash + 1 : doc->path;
+	while (dirent *e = readdir(d)) {
+		if (map_next_name_ok(e->d_name) && strcmp(e->d_name, self) != 0)
+			out.push_back(e->d_name);
+	}
+	closedir(d);
+	std::sort(out.begin(), out.end());
+	return out;
+}
+
+static void draw_next_settings(Editor *ed)
+{
+	MapDoc *doc = &ed->doc;
+	const char *current = doc->next[0] ? doc->next : "None (last level)";
+	ImGui::SetNextItemWidth(-FLT_MIN);
+	if (ImGui::BeginCombo("##next", current)) {
+		static std::vector<std::string> maps;
+		if (ImGui::IsWindowAppearing())
+			maps = list_sibling_maps(doc);
+		const char *picked = nullptr;
+		if (ImGui::Selectable("None (last level)", !doc->next[0]))
+			picked = "";
+		ImGui::Separator();
+		for (const std::string &m : maps) {
+			if (ImGui::Selectable(m.c_str(), m == doc->next))
+				picked = m.c_str();
+		}
+		if (picked && strcmp(picked, doc->next) != 0) {
+			doc_begin_edit(doc);
+			doc_set_next(doc, picked);
+			doc_end_edit(doc);
+		}
+		ImGui::EndCombo();
+	}
+	ImGui::TextDisabled("Loaded when the exit door (X) is used");
+}
+
 static void draw_music_settings(Editor *ed)
 {
 	MapDoc *doc = &ed->doc;
@@ -981,7 +1033,8 @@ static bool brush_button(Editor *ed, int i)
 		clicked = ImGui::ImageButton("b", tex_ref(art->wall[br->image]), sz);
 		break;
 	case BRUSH_DOOR:
-		clicked = ImGui::ImageButton("b", tex_ref(art->wall[TILE_DOOR]), sz);
+	case BRUSH_EXIT:
+		clicked = ImGui::ImageButton("b", tex_ref(art->wall[br->image]), sz);
 		break;
 	case BRUSH_THING:
 		clicked = ImGui::ImageButton("b", tex_ref(art->sprite[br->image]), sz, ImVec2(0, 0), ImVec2(1, 1), bg);
@@ -1052,7 +1105,7 @@ static void draw_palette_window(Editor *ed)
 		}
 	};
 	section("Walls", BRUSH_WALL, BRUSH_WALL);
-	section("Doors & floor", BRUSH_DOOR, BRUSH_FLOOR);
+	section("Doors, exit & floor", BRUSH_DOOR, BRUSH_FLOOR);
 	section("Player, guards & items", BRUSH_PLAYER, BRUSH_THING);
 
 	ImGui::Spacing();
@@ -1082,6 +1135,9 @@ static void draw_properties_window(Editor *ed)
 	ImGui::SeparatorText("Music");
 	draw_music_settings(ed);
 
+	ImGui::SeparatorText("Next level");
+	draw_next_settings(ed);
+
 	ImGui::SeparatorText("Contents");
 	const DocStats *st = &ed->stats;
 	if (ImGui::BeginTable("stats", 2, ImGuiTableFlags_SizingStretchProp)) {
@@ -1099,6 +1155,7 @@ static void draw_properties_window(Editor *ed)
 		row("Lamps", st->lamps);
 		row("Doors", st->doors);
 		row("Secret walls", st->secrets);
+		row("Exits", st->exits);
 		ImGui::EndTable();
 	}
 
