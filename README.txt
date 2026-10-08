@@ -59,7 +59,21 @@ You start with 100% health and 12 bullets.
   off in turn, so a row of barrels makes a chain reaction. Guards that
   hear an explosion come looking.
 
-  The status bar shows health, guards killed out of the total, and ammo.
+  Weapons (keys 1, 2, 3):
+    1  Fists ......... no ammo, short reach, and silent: guards do not
+                       hear punches. About three punches drop a guard.
+    2  Pistol ........ what you start with. One shot at a time.
+    3  Submachine gun  hold Ctrl for about nine rounds a second, a little
+                       less accurate. Lies on the floor somewhere (E1M2);
+                       walking over it picks it up with 20 rounds and
+                       takes it out.
+  Both guns use the same bullets. When they run out you switch to your
+  fists, and picking up ammo brings the gun back out. Weapons carry over
+  to the next floor. A dropped weapon is lowered and the new one raised,
+  so switching takes a moment; you cannot fire meanwhile.
+
+  The status bar shows health, guards killed out of the total, the
+  weapons you own (ARMS; the one in hand is yellow), and ammo.
   The screen flashes red when you are hit and gold when you pick
   something up, like Doom: the palette itself is swapped.
   If your health reaches 0%, press Space to restart the level.
@@ -165,7 +179,7 @@ Tools:
 
 Brushes (the same characters as the map file):
   1-9 walls, D door, X exit, S secret wall, . floor, P player start,
-  E guard, + medkit, a ammo, b explosive barrel, l lamp
+  E guard, + medkit, a ammo, m submachine gun, b explosive barrel, l lamp
 
 Keys:
   Ctrl+N / Ctrl+O / Ctrl+S   new / open / save   (Ctrl+Shift+S: save as)
@@ -201,7 +215,8 @@ every one of them can be changed in raycaster.cfg (see CONFIGURATION).
   Shift ............ run
   Space ............ open / close the door ahead, push a secret wall,
                      restart after dying
-  Ctrl ............. fire (hold to keep firing)
+  Ctrl ............. fire / punch (hold to keep firing)
+  1 / 2 / 3 ........ fists / pistol / submachine gun
   F1 ............... show render time and frames per second
   Esc .............. quit (cannot be rebound)
 
@@ -246,6 +261,7 @@ FEATURES (ROADMAP)
   [x] Objective: exit door, floor complete tally, next level (@next),
       episode of two floors
   [x] Explosive barrels: radius damage, chain reactions
+  [x] Weapons: fists, pistol, submachine gun
 
 
 DIRECTORY LAYOUT
@@ -271,6 +287,7 @@ Maps are plain text files. Each character is one grid cell:
   E  enemy             +    health
   a  ammo              b    explosive barrel
   l  hanging lamp     X    exit door (use it to finish the level)
+  m  submachine gun
 
   The outer border must be solid wall (not a door or secret wall) so rays
   always hit something. A door needs walls on exactly two opposite sides;

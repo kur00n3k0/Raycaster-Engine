@@ -317,6 +317,18 @@ and prove equivalence with a test before switching it on.
   player point blank. Barrels in range ignite (chain, one fuse later); idle guards within
   `BLAST_HEARING` wake. Explosion sprites are fullbright (`sprite_fullbright` in SpriteIds.h,
   colormap 0 in Sprites.cpp). Test map: `assets/maps/test_barrels.txt`.
+- Weapons (user request): `WeaponId` fists / pistol / SMG = keys 1/2/3 (`ACT_WEAPON_*`,
+  `Input::selectWeapon` = the slot whose key is held). Stats are the `WEAPONS[]` table in Game.cpp
+  (cooldown, flash, ammo, damage, range, hit width, spread, sound, loud, ignites barrels);
+  `player_attack` is the one hitscan for all of them. Fists: silent, 1.1 tile reach, do not set
+  off barrels, `SFX_PUNCH`/`SFX_SWING`. Guns share `Player::ammo`; firing dry switches to fists,
+  ammo pickup while on fists brings out `best_gun`. `Player::weaponsOwned` bitmask; switching
+  (`select_weapon` / `update_weapon_switch`) lowers for half of `GAME_WEAPON_SWITCH_TIME`, swaps,
+  raises; no firing meanwhile; HUD offsets the weapon by `game_weapon_lower`. Map thing `m`
+  (`THING_SMG`, counts as an item) gives the SMG + 20 rounds (or only the rounds if owned).
+  `next_level` carries `weaponsOwned` and the weapon; death/episode restart resets to pistol.
+  HUD ARMS panel between KILLS and AMMO. New weapon: add to `WeaponId`, `WEAPONS[]`, an action,
+  HUD `FRAMES`, sprites (`SpriteIds.h` + `SPRITE_NAMES` + gen_textures).
 - Background test processes ignore SIGINT (non-interactive `&`): stop the game/editor with
   `pkill -TERM -x raycaster` / `map_editor`, or stale windows get screenshotted.
 - See `README.txt` for the user-facing description.

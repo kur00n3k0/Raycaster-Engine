@@ -24,6 +24,11 @@ enum SpriteId : uint8_t {
 	SPR_EXPLODE1,		/* barrel bursting (fuse) */
 	SPR_EXPLODE2,		/* fireball */
 	SPR_EXPLODE3,		/* fading fire and smoke */
+	SPR_FISTS_IDLE,		/* first-person fists, drawn by the HUD */
+	SPR_FISTS_PUNCH,
+	SPR_SMG_IDLE,		/* first-person submachine gun */
+	SPR_SMG_FIRE,
+	SPR_SMG_PICKUP,		/* submachine gun lying on the floor (map thing 'm') */
 	SPR_COUNT
 };
 

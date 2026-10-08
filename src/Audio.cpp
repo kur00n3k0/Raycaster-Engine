@@ -27,6 +27,10 @@ static const char *const SFX_PATHS[SFX_COUNT] = {
 	"assets/sounds/pickup.wav",
 	"assets/sounds/exit.wav",
 	"assets/sounds/explode.wav",
+	"assets/sounds/smg.wav",
+	"assets/sounds/punch.wav",
+	"assets/sounds/swing.wav",
+	"assets/sounds/weapon_up.wav",
 };
 static_assert(sizeof(SFX_PATHS) / sizeof(SFX_PATHS[0]) == SFX_COUNT, "one path per Sfx");
 

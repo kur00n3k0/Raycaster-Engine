@@ -14,6 +14,18 @@ enum {
 /* Seconds before Use leaves a level-end screen (so a held key cannot skip it). */
 static const float GAME_INTERMISSION_DELAY = 0.75f;
 
+/* Weapon slots, also the number keys that select them (1, 2, 3). */
+enum WeaponId : uint8_t {
+	WEAPON_FISTS,		/* melee, no ammo, silent */
+	WEAPON_PISTOL,		/* single shots */
+	WEAPON_SMG,		/* submachine gun: fast automatic fire, picked up as 'm' */
+	WEAPON_COUNT,
+	WEAPON_NONE = 0xFF
+};
+
+/* Seconds to lower the old weapon and raise the new one (half each). */
+static const float GAME_WEAPON_SWITCH_TIME = 0.3f;
+
 /* One tick's worth of input, sampled by main from the window. */
 struct Input {
 	bool forward;
@@ -25,6 +37,7 @@ struct Input {
 	bool run;
 	bool use;		/* open doors, push secret walls, restart when dead (on press) */
 	bool fire;		/* held: fires whenever the weapon is ready */
+	uint8_t selectWeapon;	/* WeaponId whose key is down, or WEAPON_NONE */
 };
 
 struct Player {
@@ -33,8 +46,12 @@ struct Player {
 	int health;
 	int ammo;
 	bool dead;
-	float fireCooldown;	/* seconds until the pistol can fire again */
-	float flashTime;	/* seconds the muzzle-flash frame stays up */
+	uint8_t weapon;		/* WeaponId in hand (the old one while it is being lowered) */
+	uint8_t pendingWeapon;	/* WeaponId being switched to, WEAPON_NONE when not switching */
+	uint8_t weaponsOwned;	/* bit per WeaponId */
+	float switchTime;	/* seconds left of the lower/raise animation, 0 = ready */
+	float fireCooldown;	/* seconds until the weapon can fire again */
+	float flashTime;	/* seconds the muzzle-flash / punch frame stays up */
 	float damageFlash;	/* Doom's damagecount: + damage taken, fades 35 per second */
 	float bonusFlash;	/* Doom's bonuscount: + 6 per pickup, fades 35 per second */
 	float bobPhase;		/* grows with distance walked; drives the weapon bob */
@@ -138,6 +155,9 @@ void game_shutdown(Game *game);
 
 /* Advance the world by exactly 1 / GAME_TICK_RATE seconds. */
 void game_tick(Game *game, const Input *input);
+
+/* How far the weapon is lowered by a switch: 0 = up and ready, 1 = out of sight. */
+float game_weapon_lower(const Player *player);
 
 /* Which flash palette to show (index into palette_build_flashes output, 0 = none). */
 int game_flash_palette(const Game *game);

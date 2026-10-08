@@ -10,7 +10,7 @@ enum { MAP_MAX_SIZE = 256 };
 static bool tile_from_char(char c, uint8_t *tile)
 {
 	switch (c) {
-	case '.': case 'P': case 'E': case '+': case 'a': case 'b': case 'l':
+	case '.': case 'P': case 'E': case '+': case 'a': case 'b': case 'l': case 'm':
 		*tile = TILE_EMPTY;
 		return true;
 	case '#':
@@ -43,6 +43,7 @@ static int thing_from_char(char c)
 	case 'a': return THING_AMMO;
 	case 'b': return THING_BARREL;
 	case 'l': return THING_LAMP;
+	case 'm': return THING_SMG;
 	default:  return -1;
 	}
 }

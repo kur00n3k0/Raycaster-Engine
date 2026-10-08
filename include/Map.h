@@ -65,6 +65,7 @@ enum ThingType : uint8_t {
 	THING_AMMO,	/* a */
 	THING_BARREL,	/* b */
 	THING_LAMP,	/* l */
+	THING_SMG,	/* m: submachine gun pickup */
 	THING_TYPE_COUNT
 };
 

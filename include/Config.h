@@ -18,6 +18,9 @@ enum Action {
 	ACT_RUN,
 	ACT_USE,
 	ACT_FIRE,
+	ACT_WEAPON_FISTS,
+	ACT_WEAPON_PISTOL,
+	ACT_WEAPON_SMG,
 	ACT_STATS,	/* toggle the frame time / FPS line */
 	ACT_COUNT
 };

@@ -50,6 +50,14 @@ static void read_input(const Window *window, const Config *config, Input *input)
 	input->run         = action_down(window, config, ACT_RUN);
 	input->use         = action_down(window, config, ACT_USE);
 	input->fire        = action_down(window, config, ACT_FIRE);
+	input->selectWeapon = WEAPON_NONE;
+	static const int WEAPON_ACTIONS[WEAPON_COUNT] = { ACT_WEAPON_FISTS, ACT_WEAPON_PISTOL, ACT_WEAPON_SMG };
+	for (int w = 0; w < WEAPON_COUNT; w++) {
+		if (action_down(window, config, WEAPON_ACTIONS[w])) {
+			input->selectWeapon = (uint8_t)w;
+			break;
+		}
+	}
 }
 
 /*

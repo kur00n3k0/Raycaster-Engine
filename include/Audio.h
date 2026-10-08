@@ -30,6 +30,10 @@ enum Sfx {
 	SFX_PICKUP,
 	SFX_EXIT,
 	SFX_EXPLODE,
+	SFX_SMG,
+	SFX_PUNCH,	/* fist landing */
+	SFX_SWING,	/* fist missing */
+	SFX_WEAPON_UP,	/* weapon switch / weapon pickup */
 	SFX_COUNT
 };
 

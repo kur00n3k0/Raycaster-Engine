@@ -144,7 +144,12 @@ static void draw_panel(Video *video, int x0, int y0, int x1, int y1, int s)
 static void draw_weapon(Video *video, const Raycaster *rc, const Game *game, const RenderAssets *assets)
 {
 	const Player *p = &game->player;
-	const Texture *tex = &assets->sprites->sprite[p->flashTime > 0.0f ? SPR_WEAPON_FIRE : SPR_WEAPON_IDLE];
+	static const uint8_t FRAMES[WEAPON_COUNT][2] = {	/* idle, attacking */
+		{ SPR_FISTS_IDLE, SPR_FISTS_PUNCH },
+		{ SPR_WEAPON_IDLE, SPR_WEAPON_FIRE },
+		{ SPR_SMG_IDLE, SPR_SMG_FIRE },
+	};
+	const Texture *tex = &assets->sprites->sprite[FRAMES[p->weapon][p->flashTime > 0.0f ? 1 : 0]];
 	const float s = (float)video->width / (float)VIDEO_BASE_WIDTH;
 
 	/* Same pixel-aspect correction as the world: rows are 1.2x taller than columns are wide. */
@@ -156,7 +161,7 @@ static void draw_weapon(Video *video, const Raycaster *rc, const Game *game, con
 	float bobX = sinf(p->bobPhase) * 6.0f * s;
 	float bobY = fabsf(cosf(p->bobPhase)) * 5.0f * s;
 	float left = (float)rc->width * 0.5f - drawW * 0.5f + bobX;
-	float top = (float)rc->height - drawH + bobY;
+	float top = (float)rc->height - drawH + bobY + game_weapon_lower(p) * drawH;
 
 	int x0 = (int)ceilf(left - 0.5f), x1 = (int)ceilf(left + drawW - 0.5f);
 	int y0 = (int)ceilf(top - 0.5f);
@@ -199,7 +204,9 @@ static void draw_status_bar(Video *video, const Raycaster *rc, const Game *game)
 	fill_rect(video, 0, top + s, video->width, top + 2 * s, (uint8_t)(BAR_RAMP * 16 + 3));
 
 	struct Box { int x0, x1; const char *label; };
-	const Box boxes[3] = { { 6, 98, "HEALTH" }, { 110, 210, "KILLS" }, { 222, 314, "AMMO" } };
+	const Box boxes[4] = {
+		{ 6, 80, "HEALTH" }, { 86, 160, "KILLS" }, { 166, 236, "ARMS" }, { 242, 314, "AMMO" }
+	};
 	for (const Box &b : boxes) {
 		draw_panel(video, b.x0 * s, top + 4 * s, b.x1 * s, top + 29 * s, s);
 		int cx = (b.x0 + b.x1) / 2 * s;
@@ -208,13 +215,23 @@ static void draw_status_bar(Video *video, const Raycaster *rc, const Game *game)
 
 	uint8_t healthColor = p->health > 50 ? GREEN : (p->health > 25 ? YELLOW : RED);
 	snprintf(text, sizeof(text), "%d%%", p->health);
-	draw_text_shadow(video, 52 * s - text_width(text, 2 * s) / 2, top + 14 * s, text, 2 * s, 2 * s, healthColor);
+	draw_text_shadow(video, 43 * s - text_width(text, 2 * s) / 2, top + 14 * s, text, 2 * s, 2 * s, healthColor);
 
 	snprintf(text, sizeof(text), "%d/%d", game->enemiesKilled, game->enemiesTotal);
-	draw_text_shadow(video, 160 * s - text_width(text, 2 * s) / 2, top + 14 * s, text, 2 * s, 2 * s, WHITE);
+	draw_text_shadow(video, 123 * s - text_width(text, 2 * s) / 2, top + 14 * s, text, 2 * s, 2 * s, WHITE);
+
+	/* Doom's ARMS: slot numbers, the one in hand bright, owned ones dim, the rest hidden. */
+	int wanted = p->pendingWeapon != WEAPON_NONE ? p->pendingWeapon : p->weapon;
+	for (int w = 0; w < WEAPON_COUNT; w++) {
+		if (!((p->weaponsOwned >> w) & 1u))
+			continue;
+		char digit[2] = { (char)('1' + w), '\0' };
+		int x = (201 + (w - 1) * 20) * s - text_width(digit, 2 * s) / 2;
+		draw_text_shadow(video, x, top + 14 * s, digit, 2 * s, 2 * s, w == wanted ? YELLOW : LABEL);
+	}
 
 	snprintf(text, sizeof(text), "%d", p->ammo);
-	draw_text_shadow(video, 268 * s - text_width(text, 2 * s) / 2, top + 14 * s, text, 2 * s, 2 * s,
+	draw_text_shadow(video, 278 * s - text_width(text, 2 * s) / 2, top + 14 * s, text, 2 * s, 2 * s,
 		p->ammo > 0 ? YELLOW : RED);
 }
 

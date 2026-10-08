@@ -21,13 +21,34 @@ static const int START_HEALTH = 100;
 static const int MAX_HEALTH = 100;
 static const int START_AMMO = 12;
 static const int MAX_AMMO = 99;
-static const float FIRE_COOLDOWN = 0.4f;	/* seconds between pistol shots */
-static const float FLASH_TIME = 0.12f;
 static const float FLASH_FADE = 35.0f;		/* flash counters lose this much per second (1 per Doom tic) */
 static const float FLASH_MAX = 100.0f;
 static const float BONUS_ADD = 6.0f;		/* Doom's BONUSADD */
-static const float HITSCAN_WIDTH = 0.3f;	/* half-width of an enemy for bullets */
 static const float MESSAGE_TIME = 3.0f;
+
+/* Weapons */
+struct WeaponDef {
+	float cooldown;		/* seconds between attacks */
+	float flash;		/* seconds the attack frame stays up */
+	int ammo;		/* used per attack */
+	int damageMin, damageMax;
+	int pointBlank;		/* extra damage within 2 tiles */
+	float range;		/* tiles */
+	float width;		/* how close the line must pass an enemy's centre */
+	float spread;		/* radians, random either side of the aim */
+	int sfx;		/* attack sound (fists: SFX_PUNCH / SFX_SWING instead) */
+	bool loud;		/* wakes idle guards within ENEMY_HEARING */
+	bool ignites;		/* sets off barrels */
+};
+
+static const WeaponDef WEAPONS[WEAPON_COUNT] = {
+	/* Fists: no ammo, no noise, short reach. A guard takes about three punches. */
+	{ 0.45f, 0.2f, 0, 7, 13, 0, 1.1f, 0.4f, 0.0f, SFX_SWING, false, false },
+	/* Pistol: the old single shot. */
+	{ 0.4f, 0.12f, 1, 8, 16, 6, 64.0f, 0.3f, 0.0f, SFX_PISTOL, true, true },
+	/* Submachine gun: hold to fire ~9 rounds a second, weaker and less accurate per round. */
+	{ 0.11f, 0.06f, 1, 6, 11, 4, 64.0f, 0.3f, 0.035f, SFX_SMG, true, true },
+};
 
 /* Things */
 static const float THING_RADIUS = 0.3f;		/* solid things: enemies, barrels */
@@ -35,6 +56,7 @@ static const float PICKUP_RADIUS = 0.55f;
 static const int HEALTH_PICKUP = 25;
 static const int AMMO_PICKUP = 8;
 static const int AMMO_DROP = 4;
+static const int SMG_PICKUP_AMMO = 20;
 
 /* Barrels: Doom's 128-damage blast, falling off linearly to nothing at the radius. */
 static const float BARREL_FUSE_TIME = 0.3f;	/* Doom: 15 tics from death to A_Explode */
@@ -653,49 +675,124 @@ static void player_use(Game *game)
 }
 
 /* Things a bullet can hit: living enemies and barrels that have not gone off yet. */
-static bool is_shootable(const Entity *e)
+static bool is_shootable(const Entity *e, bool barrels)
 {
-	return is_alive_enemy(e) || (e->active && e->type == THING_BARREL && e->state == BARREL_IDLE);
+	return is_alive_enemy(e)
+		|| (barrels && e->active && e->type == THING_BARREL && e->state == BARREL_IDLE);
 }
 
-/* Hitscan along the view direction: the nearest enemy or barrel the ray passes close enough to. */
-static void player_fire(Game *game)
+static bool has_weapon(const Player *p, int weapon)
+{
+	return (p->weaponsOwned >> weapon) & 1u;
+}
+
+/* The weapon the player will have once any switch finishes. */
+static int wanted_weapon(const Player *p)
+{
+	return p->pendingWeapon != WEAPON_NONE ? p->pendingWeapon : p->weapon;
+}
+
+/*
+ * Start lowering the weapon in hand to bring up another one. Guns need
+ * ammo to be picked. A switch during a switch turns around from where the
+ * weapon is now, so the animation never jumps.
+ */
+static void select_weapon(Game *game, int weapon)
 {
 	Player *p = &game->player;
-	if (p->ammo == 0) {
-		show_message(game, "OUT OF AMMO");
+	if (!has_weapon(p, weapon) || weapon == wanted_weapon(p))
+		return;
+	if (WEAPONS[weapon].ammo > p->ammo) {
+		show_message(game, "NO AMMO");
 		return;
 	}
-	p->ammo--;
-	p->fireCooldown = FIRE_COOLDOWN;
-	p->flashTime = FLASH_TIME;
-	emit_sound(game, SFX_PISTOL, p->pos);
+	const float half = GAME_WEAPON_SWITCH_TIME * 0.5f;
+	if (p->switchTime <= 0.0f)
+		p->switchTime = GAME_WEAPON_SWITCH_TIME;
+	else if (p->switchTime <= half)
+		p->switchTime = GAME_WEAPON_SWITCH_TIME - p->switchTime;	/* was raising: lower again */
+	p->pendingWeapon = (uint8_t)weapon;
+}
 
-	glm::vec2 dir(cosf(p->angle), sinf(p->angle));
-	float wallDist = trace_distance(&game->map, p->pos, dir, 64.0f);
+/* Lower / swap at the bottom / raise. */
+static void update_weapon_switch(Game *game)
+{
+	Player *p = &game->player;
+	if (p->switchTime <= 0.0f)
+		return;
+	const float half = GAME_WEAPON_SWITCH_TIME * 0.5f;
+	bool lowering = p->switchTime > half;
+	p->switchTime -= TICK;
+	if (lowering && p->switchTime <= half) {
+		p->weapon = p->pendingWeapon;
+		emit_sound(game, SFX_WEAPON_UP, p->pos);
+	}
+	if (p->switchTime <= 0.0f) {
+		p->switchTime = 0.0f;
+		p->pendingWeapon = WEAPON_NONE;
+	}
+}
+
+/* Best gun with ammo, for picking up ammo after running dry (Wolf3D does the same). */
+static int best_gun(const Player *p)
+{
+	return has_weapon(p, WEAPON_SMG) ? WEAPON_SMG : WEAPON_PISTOL;
+}
+
+/*
+ * Attack with the weapon in hand: hitscan along the view direction (with
+ * spread for the SMG) to the nearest enemy, or barrel for guns, that the
+ * line passes close enough to, up to the weapon's reach.
+ */
+static void player_attack(Game *game)
+{
+	Player *p = &game->player;
+	const WeaponDef *w = &WEAPONS[p->weapon];
+	if (w->ammo > p->ammo) {
+		show_message(game, "OUT OF AMMO");
+		select_weapon(game, WEAPON_FISTS);
+		return;
+	}
+	p->ammo -= w->ammo;
+	p->fireCooldown = w->cooldown;
+	p->flashTime = w->flash;
+
+	float angle = p->angle;
+	if (w->spread > 0.0f)
+		angle += w->spread * (2.0f * random_float(game) - 1.0f);
+	glm::vec2 dir(cosf(angle), sinf(angle));
+	float reach = trace_distance(&game->map, p->pos, dir, w->range);
 
 	Entity *target = nullptr;
-	float best = wallDist;
+	float best = reach;
 	for (int i = 0; i < game->entityCount; i++) {
 		Entity *e = &game->entities[i];
-		if (!is_shootable(e))
+		if (!is_shootable(e, w->ignites))
 			continue;
 		glm::vec2 rel = e->pos - p->pos;
 		float along = rel.x * dir.x + rel.y * dir.y;
 		float lateral = fabsf(rel.x * dir.y - rel.y * dir.x);
-		if (along > 0.0f && along < best && lateral < HITSCAN_WIDTH) {
+		if (along > 0.0f && along < best && lateral < w->width) {
 			best = along;
 			target = e;
 		}
 	}
+
+	if (p->weapon == WEAPON_FISTS)
+		emit_sound(game, target ? SFX_PUNCH : SFX_SWING, p->pos);
+	else
+		emit_sound(game, w->sfx, p->pos);
+
 	if (target && target->type == THING_BARREL) {
 		ignite_barrel(target);
 	} else if (target) {
 		/* Point blank hurts more, like Wolf3D's distance-scaled damage. */
-		int damage = random_int(game, 8, 16) + (best < 2.0f ? 6 : 0);
+		int damage = random_int(game, w->damageMin, w->damageMax) + (best < 2.0f ? w->pointBlank : 0);
 		hurt_enemy(game, target, damage);
 	}
 
+	if (!w->loud)
+		return;
 	/* The shot is heard by every idle enemy within earshot along open paths. */
 	for (int i = 0; i < game->entityCount; i++) {
 		Entity *e = &game->entities[i];
@@ -712,23 +809,33 @@ static void pick_up_items(Game *game)
 	Player *p = &game->player;
 	for (int i = 0; i < game->entityCount; i++) {
 		Entity *e = &game->entities[i];
-		if (!e->active || (e->type != THING_HEALTH && e->type != THING_AMMO))
+		if (!e->active || (e->type != THING_HEALTH && e->type != THING_AMMO && e->type != THING_SMG))
 			continue;
 		glm::vec2 d = e->pos - p->pos;
 		if (fabsf(d.x) > PICKUP_RADIUS || fabsf(d.y) > PICKUP_RADIUS)
 			continue;
 
+		int oldAmmo = p->ammo;
 		if (e->type == THING_HEALTH) {
 			if (p->health >= MAX_HEALTH)
 				continue;	/* leave it for later, like Wolf3D */
 			p->health = p->health + e->amount > MAX_HEALTH ? MAX_HEALTH : p->health + e->amount;
 			show_message(game, "PICKED UP A MEDKIT");
+		} else if (e->type == THING_SMG && !has_weapon(p, WEAPON_SMG)) {
+			p->weaponsOwned |= (uint8_t)(1u << WEAPON_SMG);
+			p->ammo = p->ammo + e->amount > MAX_AMMO ? MAX_AMMO : p->ammo + e->amount;
+			show_message(game, "SUBMACHINE GUN!");
+			select_weapon(game, WEAPON_SMG);
 		} else {
+			/* Ammo, or a second SMG: only its rounds. */
 			if (p->ammo >= MAX_AMMO)
 				continue;
 			p->ammo = p->ammo + e->amount > MAX_AMMO ? MAX_AMMO : p->ammo + e->amount;
 			show_message(game, "PICKED UP AMMO");
 		}
+		/* Ran dry and fell back to the fists: take the gun out again. */
+		if (oldAmmo == 0 && p->ammo > 0 && wanted_weapon(p) == WEAPON_FISTS)
+			select_weapon(game, best_gun(p));
 		e->active = false;
 		if (i < game->mapEntities)
 			game->itemsTaken++;
@@ -776,8 +883,11 @@ static void update_player(Game *game, const Input *input)
 		p->bobPhase += moved * 4.0f;
 	}
 
-	if (input->fire && p->fireCooldown <= 0.0f)
-		player_fire(game);
+	if (input->selectWeapon != WEAPON_NONE)
+		select_weapon(game, input->selectWeapon);
+	update_weapon_switch(game);
+	if (input->fire && p->fireCooldown <= 0.0f && p->switchTime <= 0.0f)
+		player_attack(game);
 
 	pick_up_items(game);
 }
@@ -907,7 +1017,7 @@ static void update_enemy(Game *game, int index)
 static void spawn_things(Game *game)
 {
 	static const uint8_t SPRITE_FOR_THING[THING_TYPE_COUNT] = {
-		SPR_ENEMY_STAND, SPR_HEALTH, SPR_AMMO, SPR_BARREL, SPR_LAMP
+		SPR_ENEMY_STAND, SPR_HEALTH, SPR_AMMO, SPR_BARREL, SPR_LAMP, SPR_SMG_PICKUP
 	};
 
 	game->entityCount = 0;
@@ -938,6 +1048,10 @@ static void spawn_things(Game *game)
 			e->amount = AMMO_PICKUP;
 			game->itemsTotal++;
 			break;
+		case THING_SMG:
+			e->amount = SMG_PICKUP_AMMO;
+			game->itemsTotal++;
+			break;
 		default:
 			break;
 		}
@@ -961,6 +1075,9 @@ static bool load_level(Game *game, const char *mapPath)
 	p->angle = game->map.playerAngle;
 	p->health = START_HEALTH;
 	p->ammo = START_AMMO;
+	p->weapon = WEAPON_PISTOL;
+	p->pendingWeapon = WEAPON_NONE;
+	p->weaponsOwned = (uint8_t)((1u << WEAPON_FISTS) | (1u << WEAPON_PISTOL));
 
 	game->rng = RNG_SEED;
 	spawn_things(game);
@@ -1003,16 +1120,18 @@ static void next_map_path(const Game *game, char *out, size_t size)
 	snprintf(out, size, "%.*s%s", dirLen, game->mapPath, game->map.next);
 }
 
-/* Intermission over: next map, carrying health and ammo over like Wolf3D. */
+/* Intermission over: next map, carrying health, ammo and weapons over like Wolf3D. */
 static void next_level(Game *game)
 {
 	char path[MAP_PATH_MAX];
 	next_map_path(game, path, sizeof(path));
-	int health = game->player.health;
-	int ammo = game->player.ammo;
+	Player old = game->player;
 	reload(game, path);
-	game->player.health = health;
-	game->player.ammo = ammo;
+	Player *p = &game->player;
+	p->health = old.health;
+	p->ammo = old.ammo;
+	p->weaponsOwned = old.weaponsOwned;
+	p->weapon = (uint8_t)wanted_weapon(&old);
 	game->levelChanged = true;
 }
 
@@ -1087,6 +1206,16 @@ void game_tick(Game *game, const Input *input)
 		if (game->messageTime <= 0.0f)
 			game->message = nullptr;
 	}
+}
+
+float game_weapon_lower(const Player *p)
+{
+	const float half = GAME_WEAPON_SWITCH_TIME * 0.5f;
+	if (p->switchTime <= 0.0f)
+		return 0.0f;
+	if (p->switchTime > half)
+		return (GAME_WEAPON_SWITCH_TIME - p->switchTime) / half;
+	return p->switchTime / half;
 }
 
 /* Doom's ST_doPaletteStuff: damage wins over pickups, (count + 7) / 8 palettes deep. */

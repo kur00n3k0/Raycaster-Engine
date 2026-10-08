@@ -82,7 +82,8 @@ static void name_from_key(int key, char *buf, size_t size)
 
 static const char *const ACTION_NAMES[ACT_COUNT] = {
 	"key_forward", "key_back", "key_strafe_left", "key_strafe_right",
-	"key_turn_left", "key_turn_right", "key_run", "key_use", "key_fire", "key_stats"
+	"key_turn_left", "key_turn_right", "key_run", "key_use", "key_fire",
+	"key_weapon_fists", "key_weapon_pistol", "key_weapon_smg", "key_stats"
 };
 
 void config_defaults(Config *c)
@@ -108,6 +109,9 @@ void config_defaults(Config *c)
 		{ GLFW_KEY_LEFT_SHIFT, GLFW_KEY_RIGHT_SHIFT },
 		{ GLFW_KEY_SPACE, KEY_NONE },
 		{ GLFW_KEY_LEFT_CONTROL, GLFW_KEY_RIGHT_CONTROL },
+		{ GLFW_KEY_1, KEY_NONE },
+		{ GLFW_KEY_2, KEY_NONE },
+		{ GLFW_KEY_3, KEY_NONE },
 		{ GLFW_KEY_F1, KEY_NONE },
 	};
 	memcpy(c->keys, DEFAULT_KEYS, sizeof(c->keys));

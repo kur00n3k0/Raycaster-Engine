@@ -472,6 +472,77 @@ static void draw_pistol(Image img, bool firing)
 static void spr_weapon_idle(Image img) { draw_pistol(img, false); }
 static void spr_weapon_fire(Image img) { draw_pistol(img, true); }
 
+/* A clenched fist seen from behind: knuckles on top, fingers folded, thumb across. */
+static void draw_fist(Image img, int cx, int cy, int r)
+{
+	ellipse(img, cx, cy, r, r * 4 / 5, col(2, 11));
+	for (int f = 0; f < 4; f++) {			/* knuckles */
+		int kx = cx - r + r / 4 + f * r / 2;
+		ellipse(img, kx, cy - r * 3 / 5, r / 4 + 1, r / 4, col(2, 13));
+	}
+	for (int f = 1; f < 4; f++) {			/* gaps between the fingers */
+		int gx = cx - r + f * r / 2;
+		rect(img, gx, cy - r / 3, gx + 1, cy + r / 3, col(2, 7));
+	}
+	rect(img, cx - r + 2, cy + r / 3, cx + r / 3, cy + r / 3 + 2, col(2, 9));	/* thumb */
+}
+
+static void draw_fists(Image img, bool punching)
+{
+	clear(img);
+	if (punching) {
+		/* Right arm thrown forward to the middle: the sleeve tapers away from the bottom right. */
+		for (int y = 34; y < 64; y++) {
+			float f = (float)(y - 34) / 30.0f;
+			int cx = 36 + (int)(f * 14.0f), half = 5 + (int)(f * 5.0f);
+			rect(img, cx - half, y, cx + half, y + 1, col(11, 5 + (int)(f * 3.0f)));
+		}
+		draw_fist(img, 35, 30, 11);
+		draw_fist(img, 10, 60, 9);			/* left fist held back, low */
+		rect(img, 2, 62, 18, 64, col(11, 6));
+	} else {
+		rect(img, 4, 56, 20, 64, col(11, 6));		/* sleeves */
+		rect(img, 44, 56, 60, 64, col(11, 6));
+		draw_fist(img, 12, 50, 9);
+		draw_fist(img, 52, 50, 9);
+	}
+	outline(img);
+}
+
+static void spr_fists_idle(Image img)  { draw_fists(img, false); }
+static void spr_fists_punch(Image img) { draw_fists(img, true); }
+
+/* First-person submachine gun: perforated barrel shroud up the middle, magazine down the left. */
+static void draw_smg(Image img, bool firing)
+{
+	clear(img);
+	rect(img, 18, 56, 30, 64, col(11, 6));			/* left sleeve */
+	rect(img, 36, 56, 50, 64, col(11, 6));			/* right sleeve */
+	rect(img, 21, 30, 27, 56, col(0, 2));			/* magazine */
+	rect(img, 21, 30, 22, 56, col(0, 5));
+	rect(img, 27, 22, 38, 52, col(0, 5));			/* receiver */
+	rect(img, 27, 22, 38, 24, col(0, 9));			/* top highlight */
+	rect(img, 29, 12, 36, 22, col(0, 3));			/* barrel shroud */
+	for (int y = 14; y < 21; y += 3)
+		rect(img, 31, y, 34, y + 1, col(0, 1));	/* cooling holes */
+	rect(img, 31, 9, 34, 12, col(0, 6));			/* front sight */
+	rect(img, 30, 20, 35, 22, col(0, 7));			/* rear sight */
+	ellipse(img, 24, 52, 7, 6, col(2, 11));			/* left hand on the magazine well */
+	ellipse(img, 41, 50, 8, 7, col(2, 11));			/* right hand on the grip */
+	ellipse(img, 36, 47, 3, 3, col(2, 9));			/* right thumb */
+	if (firing) {
+		ellipse(img, 32, 5, 10, 5, col(3, 13));		/* muzzle flash */
+		ellipse(img, 32, 5, 5, 3, col(3, 15));
+		rect(img, 19, 4, 46, 6, col(3, 14));
+		rect(img, 31, 0, 34, 9, col(3, 14));
+		ellipse(img, 32, 5, 2, 1, col(0, 15));
+	}
+	outline(img);
+}
+
+static void spr_smg_idle(Image img) { draw_smg(img, false); }
+static void spr_smg_fire(Image img) { draw_smg(img, true); }
+
 /* First aid kit lying on the floor. */
 static void spr_health(Image img)
 {
@@ -496,6 +567,23 @@ static void spr_ammo(Image img)
 		rect(img, x, 43, x + 3, 51, col(3, 12));	/* brass */
 		rect(img, x, 41, x + 3, 43, col(2, 7));		/* bullet tip */
 	}
+	outline(img);
+}
+
+/* Submachine gun lying on its side on the floor: muzzle left, folded stock right. */
+static void spr_smg_pickup(Image img)
+{
+	clear(img);
+	rect(img, 6, 52, 18, 55, col(0, 3));			/* barrel shroud */
+	for (int x = 8; x < 17; x += 3)
+		rect(img, x, 53, x + 1, 54, col(0, 1));
+	rect(img, 3, 53, 6, 54, col(0, 6));			/* muzzle */
+	rect(img, 18, 50, 42, 56, col(0, 5));			/* receiver */
+	rect(img, 18, 50, 42, 51, col(0, 9));
+	rect(img, 24, 56, 28, 64, col(0, 2));			/* magazine */
+	rect(img, 35, 56, 39, 62, col(2, 5));			/* grip */
+	rect(img, 42, 52, 58, 54, col(0, 6));			/* folded stock */
+	rect(img, 56, 52, 59, 59, col(0, 6));
 	outline(img);
 }
 
@@ -671,6 +759,11 @@ int main()
 		{ "assets/sprites/explode1.pcx", spr_explode1 },
 		{ "assets/sprites/explode2.pcx", spr_explode2 },
 		{ "assets/sprites/explode3.pcx", spr_explode3 },
+		{ "assets/sprites/fists_idle.pcx", spr_fists_idle },
+		{ "assets/sprites/fists_punch.pcx", spr_fists_punch },
+		{ "assets/sprites/smg_idle.pcx", spr_smg_idle },
+		{ "assets/sprites/smg_fire.pcx", spr_smg_fire },
+		{ "assets/sprites/smg_pickup.pcx", spr_smg_pickup },
 	};
 
 	for (const Entry &e : entries) {

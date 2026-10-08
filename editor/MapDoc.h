@@ -59,7 +59,7 @@ struct Problem {
 };
 
 struct DocStats {
-	int enemies, health, ammo, barrels, lamps;
+	int enemies, health, ammo, smgs, barrels, lamps;
 	int doors, secrets, players, exits;
 	int errors, warnings;
 };
@@ -69,7 +69,7 @@ static inline bool cell_is_wall(char c) { return c == '#' || (c >= '1' && c <= '
 static inline bool cell_is_exit(char c) { return c == 'X'; }
 /* Blocks walking: walls and the exit door (doors and secret walls open). */
 static inline bool cell_blocks(char c) { return cell_is_wall(c) || cell_is_exit(c); }
-static inline bool cell_is_thing(char c) { return c == 'E' || c == '+' || c == 'a' || c == 'b' || c == 'l'; }
+static inline bool cell_is_thing(char c) { return c == 'E' || c == '+' || c == 'a' || c == 'm' || c == 'b' || c == 'l'; }
 /* Non-empty tile in the game's sense: walls, doors, secret walls. */
 static inline bool cell_is_solid(char c) { return cell_blocks(c) || c == 'D' || c == 'S'; }
 bool cell_is_valid(char c);

@@ -280,6 +280,69 @@ static Buffer sfx_explode()
 	return b;
 }
 
+/* Submachine gun round: a shorter, tighter crack than the pistol, so a burst stays clear. */
+static Buffer sfx_smg()
+{
+	Buffer b = make_buffer(0.16f);
+	float lp = 0.0f;
+	for (int i = 0; i < b.count; i++) {
+		float t = (float)i / RATE;
+		lp += 0.6f * (white() - lp);
+		float crack = lp * expf(-t * 45.0f);
+		float thump = sinf(2.0f * PI * (120.0f + 260.0f * expf(-t * 60.0f)) * t) * expf(-t * 30.0f);
+		b.s[i] = 1.1f * crack + 0.7f * thump;
+	}
+	return b;
+}
+
+/* Punch landing: a dull low thud with a slap of noise on top. */
+static Buffer sfx_punch()
+{
+	Buffer b = make_buffer(0.18f);
+	float lp = 0.0f;
+	for (int i = 0; i < b.count; i++) {
+		float t = (float)i / RATE;
+		lp += 0.25f * (white() - lp);
+		float thud = sinf(2.0f * PI * (70.0f + 80.0f * expf(-t * 30.0f)) * t) * expf(-t * 22.0f);
+		b.s[i] = thud + 1.5f * lp * expf(-t * 60.0f);
+	}
+	return b;
+}
+
+/* Fist missing: an airy whoosh, band-passed noise sweeping up and back down. */
+static Buffer sfx_swing()
+{
+	Buffer b = make_buffer(0.22f);
+	float lp = 0.0f, lp2 = 0.0f;
+	for (int i = 0; i < b.count; i++) {
+		float t = (float)i / RATE;
+		float k = 0.05f + 0.25f * sinf(PI * t / 0.22f);
+		lp += k * (white() - lp);
+		lp2 += 0.5f * k * (lp - lp2);
+		b.s[i] = (lp - lp2) * 2.5f * envelope(t, 0.22f, 0.06f, 0.12f);
+	}
+	return b;
+}
+
+/* Weapon raised: two metallic clicks (slide racked). */
+static Buffer sfx_weapon_up()
+{
+	Buffer b = make_buffer(0.2f);
+	for (int i = 0; i < b.count; i++) {
+		float t = (float)i / RATE;
+		float v = 0.0f;
+		static const float START[2] = { 0.0f, 0.09f };
+		for (int n = 0; n < 2; n++) {
+			float lt = t - START[n];
+			if (lt < 0.0f)
+				continue;
+			v += expf(-lt * 120.0f) * (0.6f * white() + 0.6f * sinf(2.0f * PI * 2400.0f * lt));
+		}
+		b.s[i] = v;
+	}
+	return b;
+}
+
 /* ------------------------------------------------------------------------- */
 /* Music: an 8-bar minor-key loop as a Standard MIDI File                    */
 /* ------------------------------------------------------------------------- */
@@ -557,6 +620,10 @@ int main()
 		{ "assets/sounds/pickup.wav", sfx_pickup, 0.6f },
 		{ "assets/sounds/exit.wav", sfx_exit, 0.8f },
 		{ "assets/sounds/explode.wav", sfx_explode, 0.95f },
+		{ "assets/sounds/smg.wav", sfx_smg, 0.85f },
+		{ "assets/sounds/punch.wav", sfx_punch, 0.85f },
+		{ "assets/sounds/swing.wav", sfx_swing, 0.6f },
+		{ "assets/sounds/weapon_up.wav", sfx_weapon_up, 0.5f },
 	};
 	for (const Entry &e : entries) {
 		Buffer b = e.make();

@@ -345,6 +345,7 @@ void doc_validate(const MapDoc *doc, std::vector<Problem> *problems, DocStats *s
 			case 'E': stats->enemies++; break;
 			case '+': stats->health++; break;
 			case 'a': stats->ammo++; break;
+			case 'm': stats->smgs++; break;
 			case 'b': stats->barrels++; break;
 			case 'l': stats->lamps++; break;
 			case 'S': stats->secrets++; break;
@@ -365,7 +366,7 @@ void doc_validate(const MapDoc *doc, std::vector<Problem> *problems, DocStats *s
 		}
 	}
 
-	int things = stats->enemies + stats->health + stats->ammo + stats->barrels + stats->lamps;
+	int things = stats->enemies + stats->health + stats->ammo + stats->smgs + stats->barrels + stats->lamps;
 	if (stats->players == 0)
 		add(problems, -1, -1, true, "No player start (P)");
 	if (stats->players > 1)
@@ -417,7 +418,7 @@ void doc_validate(const MapDoc *doc, std::vector<Problem> *problems, DocStats *s
 				if (cell_is_thing(c) && !(*reach)[(size_t)(y * w + x)])
 					add(problems, x, y, false, "%s cannot be reached from the start",
 						c == 'E' ? "Guard" : c == '+' ? "Medkit" : c == 'a' ? "Ammo"
-						: c == 'b' ? "Barrel" : "Lamp");
+						: c == 'm' ? "Submachine gun" : c == 'b' ? "Barrel" : "Lamp");
 			}
 		}
 	}

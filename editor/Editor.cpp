@@ -110,6 +110,7 @@ static const Brush BRUSHES[] = {
 	{ 'E', "Guard", 'e', BRUSH_THING, SPR_ENEMY_STAND },
 	{ '+', "Medkit", '+', BRUSH_THING, SPR_HEALTH },
 	{ 'a', "Ammo", 'a', BRUSH_THING, SPR_AMMO },
+	{ 'm', "Submachine gun", 'm', BRUSH_THING, SPR_SMG_PICKUP },
 	{ 'b', "Explosive barrel", 'b', BRUSH_THING, SPR_BARREL },
 	{ 'l', "Lamp", 'l', BRUSH_THING, SPR_LAMP },
 };
@@ -1151,6 +1152,7 @@ static void draw_properties_window(Editor *ed)
 		row("Guards", st->enemies);
 		row("Medkits", st->health);
 		row("Ammo boxes", st->ammo);
+		row("Submachine guns", st->smgs);
 		row("Barrels", st->barrels);
 		row("Lamps", st->lamps);
 		row("Doors", st->doors);
