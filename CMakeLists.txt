@@ -94,6 +94,31 @@ target_compile_options(render_midi PRIVATE ${RC_WARNINGS})
 target_link_libraries(render_midi PRIVATE PkgConfig::FLUIDSYNTH)
 
 # ---------------------------------------------------------------------------
+# Map editor (Dear ImGui, docking branch, vendored in lib/imgui). ImGui is
+# allowed here only: the game itself never links it.
+# ---------------------------------------------------------------------------
+add_library(imgui STATIC
+	lib/imgui/imgui.cpp
+	lib/imgui/imgui_draw.cpp
+	lib/imgui/imgui_tables.cpp
+	lib/imgui/imgui_widgets.cpp
+	lib/imgui/backends/imgui_impl_glfw.cpp
+	lib/imgui/backends/imgui_impl_opengl3.cpp
+)
+target_include_directories(imgui SYSTEM PUBLIC lib/imgui lib/imgui/backends)
+target_link_libraries(imgui PUBLIC glfw)
+
+add_executable(map_editor
+	editor/Editor.cpp
+	editor/MapDoc.cpp
+	src/Palette.cpp
+	src/Textures.cpp
+)
+target_include_directories(map_editor PRIVATE include editor)
+target_compile_options(map_editor PRIVATE ${RC_WARNINGS})
+target_link_libraries(map_editor PRIVATE imgui GLEW::GLEW OpenGL::GL glm::glm)
+
+# ---------------------------------------------------------------------------
 # ASM vs C++ equivalence tests
 # ---------------------------------------------------------------------------
 if(RC_USE_ASM)

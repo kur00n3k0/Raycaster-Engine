@@ -7,6 +7,7 @@
 
 # Per-user settings, written with the defaults on first run
 /raycaster.cfg
+/map_editor.ini
 
 # Editor leftovers
 *.swp

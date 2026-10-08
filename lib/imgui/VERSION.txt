@@ -1,0 +1,8 @@
+Dear ImGui, docking branch, vendored for the map editor only (the game never links it).
+
+  upstream: https://github.com/ocornut/imgui
+  tag:      v1.92.9b-docking
+  commit:   b48d1afbe8ee8b238e2961dc363a949dd7304e23
+
+Core files plus the GLFW and OpenGL 3 backends, unmodified. MIT license (LICENSE.txt).
+To update: copy the same files from a newer *-docking tag and update this note.

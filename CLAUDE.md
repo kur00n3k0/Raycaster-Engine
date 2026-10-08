@@ -12,7 +12,9 @@ are written in hand-rolled x86-64 assembly (NASM), everything else in C-style C+
 
 Purist rules:
 
-- No engine frameworks, no image/audio loader libraries, no ImGui. Loaders are written by hand.
+- No engine frameworks, no image/audio loader libraries. Loaders are written by hand.
+- No ImGui in the game. The map editor (`editor/`) uses Dear ImGui, docking branch,
+  vendored in `lib/imgui` (user decision). Never link ImGui into `raycaster`.
 - The only external libraries are the ones listed under "Stack".
 - The 3D view is never drawn with GL geometry. GL draws exactly one triangle.
 - Every ASM routine has a C++ reference implementation with the same signature.
@@ -30,6 +32,7 @@ Purist rules:
 | OpenAL          | Output for SFX (3D sources) and streamed MIDI music     |
 | GLM             | Vector math for the player, camera and game logic       |
 | FluidSynth 2    | MIDI synth for the music (General MIDI .sf2 SoundFont)  |
+| Dear ImGui      | Map editor UI only (docking branch, `lib/imgui`)        |
 
 GLM is a C++ header library, which is why the "C" side of the project is C++
 written in a plain, C-like style (see Conventions). Target platform is Linux
@@ -101,7 +104,8 @@ tests/    asm_equivalence.cpp
 tools/    gen_textures.cpp (placeholder textures + sprites), gen_sounds.cpp (SFX .wav + music .mid),
           bench_routines.cpp (ASM vs C++ timing),
           render_midi.cpp (render a .mid through FluidSynth to .wav for offline checks)
-lib/      reserved for vendored deps (currently empty, system libs are used)
+editor/   map_editor: MapDoc.cpp (char grid, load/save, undo, validation), Editor.cpp (ImGui UI)
+lib/      vendored deps: imgui/ (Dear ImGui v1.92.9b-docking + GLFW/OpenGL3 backends, see VERSION.txt)
 ```
 
 ### Key design decisions
@@ -181,7 +185,7 @@ and prove equivalence with a test before switching it on.
 ## Notes for Claude
 
 - All 10 roadmap steps are done. CMake builds `rc_core` (reference + ASM), `raycaster`,
-  `gen_textures`, `gen_sounds`, `render_midi`, and with ASM on `asm_equivalence` (ctest) and
+  `gen_textures`, `gen_sounds`, `render_midi`, `imgui` + `map_editor`, and with ASM on `asm_equivalence` (ctest) and
   `bench_routines`. ASM routines: `fb_clear`, `draw_column`, `draw_span`, `draw_sprite_col`.
 - Keyboard only (user decision): no mouse input anywhere. Input goes through `Config::keys`
   (`action_down` in main); add new actions to `Action`, `ACTION_NAMES` and the defaults.
@@ -269,4 +273,15 @@ and prove equivalence with a test before switching it on.
   `tests/asm_equivalence.cpp` in the same change.
 - Keep to the stack above; do not add dependencies without asking.
 - When touching an ASM routine, update its C++ reference and the struct mirrors together.
+- Map editor (`map_editor`, user request): ImGui docking, top-down 2D only. The document is the
+  map's own character grid (`MapDoc`), so saving writes exactly the game's format and keeps
+  `#` vs `1`. `doc_validate` mirrors `map_load` (border, one P, door walls, door/thing limits) and
+  adds warnings (unreachable things via flood fill from P, no guards); if `map_load` gains a
+  rule, add it to `doc_validate` too. Every user action is wrapped in `doc_begin_edit` /
+  `doc_end_edit` (snapshot undo, no-op edits dropped). Brushes and tools are tables at the top
+  of `Editor.cpp`; single-character keys use the map characters. F5 saves and `posix_spawn`s
+  `raycaster -map` from the editor's own directory; F6 adds `-warp` at the hovered cell. Default
+  dock layout via `DockBuilder` when `map_editor.ini` has none. The editor uses the mouse; the
+  keyboard-only rule is for the game. Verify by screenshots with xdotool as for the game
+  (window name ends in "Raycaster Map Editor"); don't `pkill -f` a pattern that matches your own shell.
 - See `README.txt` for the user-facing description.

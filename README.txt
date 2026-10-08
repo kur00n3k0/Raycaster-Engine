@@ -26,8 +26,10 @@ STACK
   OpenAL ........... sound output
   GLM .............. vector math
   FluidSynth ....... MIDI synthesizer for the music (SoundFont based)
+  Dear ImGui ....... user interface of the map editor only (bundled in lib/)
 
 No other libraries. Image, sound and MIDI file loaders are written by hand.
+The game itself does not use ImGui; only the map editor does.
 
 
 GAMEPLAY
@@ -115,6 +117,53 @@ RUNNING
     ./build/render_midi assets/music/e1m1.mid out.wav [seconds [soundfont.sf2]]
 
 
+MAP EDITOR
+----------
+A top-down map editor comes with the engine. Run it from the project root:
+    ./build/map_editor                          start a new 32x32 map
+    ./build/map_editor assets/maps/e1m1.txt     edit an existing map
+
+The window is split into dockable panels (drag a tab to move it; View >
+Reset window layout puts them back):
+  Palette ...... tools and brushes, shown with the game's own textures
+  Map .......... the grid you draw on
+  Properties ... file, size, what the map contains, view options, test
+  Problems ..... everything the game would reject, live; click to jump
+
+Mouse:
+  Left button ............ paint with the current tool and brush
+  Right button ........... the same tool, but paints floor (erases)
+  Alt + left button ...... pick the brush from a cell
+  Middle button drag ..... pan (or hold Space and drag)
+  Wheel .................. zoom around the cursor
+
+Tools:
+  Q  Pencil   paint cells one by one, or drag
+  W  Line     drag a straight line
+  R  Room     drag a rectangle outline: four walls in one go
+  F  Box      drag a filled rectangle
+  G  Fill     flood fill an area of identical cells
+  I  Pick     take the brush from a cell
+
+Brushes (the same characters as the map file):
+  1-9 walls, D door, S secret wall, . floor, P player start,
+  E guard, + medkit, a ammo, b barrel, l lamp
+
+Keys:
+  Ctrl+N / Ctrl+O / Ctrl+S   new / open / save   (Ctrl+Shift+S: save as)
+  Ctrl+Z / Ctrl+Y            undo / redo
+  F5                         save and play the map in the game
+  F6                         play from the cell under the mouse
+  Home                       fit the map in the view
+  T / H                      textures / grid on or off
+  Ctrl+Q                     quit (asks before losing changes)
+
+Doors are drawn as a thin panel showing which way they face. Cells with
+problems get a red (error) or orange (warning) outline. "Shade unreachable
+floor" shows what the player can never walk to. Panel positions are kept
+in map_editor.ini.
+
+
 CONTROLS
 --------
 The game is played with the keyboard only. These are the default keys;
@@ -166,6 +215,8 @@ FEATURES (ROADMAP)
   [x] 8.  Sound effects and MIDI music through OpenAL
   [x] 9.  Gameplay: collision, pickups, enemies, weapons, HUD
   [x] 10. Polish: palette flashes, config file, profiling
+  [x] Map editor: top-down, docked ImGui panels, draw walls, place
+      guards and items, live checks, play test with F5
 
 
 DIRECTORY LAYOUT
@@ -177,11 +228,12 @@ DIRECTORY LAYOUT
   assets/     maps, textures, sprites, sounds, music, palette
   tests/      tests that check the assembly against the C++ code
   tools/      generators for the placeholder art, sounds and music
-  lib/        reserved for bundled libraries
+  editor/     the map editor (MapDoc: map model, Editor: ImGui UI)
+  lib/        bundled libraries (lib/imgui: Dear ImGui, docking branch)
 
 
-MAP FORMAT (PLANNED)
---------------------
+MAP FORMAT
+----------
 Maps are plain text files. Each character is one grid cell:
 
   #  wall (texture 1)  1-9  wall with texture 1-9 (wall1.pcx .. wall9.pcx)
