@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/peter/Projects/RaycasterEngine/build-noasm/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

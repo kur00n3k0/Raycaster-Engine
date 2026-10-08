@@ -1,0 +1,40 @@
+file(REMOVE_RECURSE
+  "CMakeFiles/raycaster.dir/link.d"
+  "CMakeFiles/raycaster.dir/src/Audio.cpp.o"
+  "CMakeFiles/raycaster.dir/src/Audio.cpp.o.d"
+  "CMakeFiles/raycaster.dir/src/Config.cpp.o"
+  "CMakeFiles/raycaster.dir/src/Config.cpp.o.d"
+  "CMakeFiles/raycaster.dir/src/GLCheck.cpp.o"
+  "CMakeFiles/raycaster.dir/src/GLCheck.cpp.o.d"
+  "CMakeFiles/raycaster.dir/src/Game.cpp.o"
+  "CMakeFiles/raycaster.dir/src/Game.cpp.o.d"
+  "CMakeFiles/raycaster.dir/src/Hud.cpp.o"
+  "CMakeFiles/raycaster.dir/src/Hud.cpp.o.d"
+  "CMakeFiles/raycaster.dir/src/Map.cpp.o"
+  "CMakeFiles/raycaster.dir/src/Map.cpp.o.d"
+  "CMakeFiles/raycaster.dir/src/Midi.cpp.o"
+  "CMakeFiles/raycaster.dir/src/Midi.cpp.o.d"
+  "CMakeFiles/raycaster.dir/src/Palette.cpp.o"
+  "CMakeFiles/raycaster.dir/src/Palette.cpp.o.d"
+  "CMakeFiles/raycaster.dir/src/Raycaster.cpp.o"
+  "CMakeFiles/raycaster.dir/src/Raycaster.cpp.o.d"
+  "CMakeFiles/raycaster.dir/src/Sprites.cpp.o"
+  "CMakeFiles/raycaster.dir/src/Sprites.cpp.o.d"
+  "CMakeFiles/raycaster.dir/src/Synth.cpp.o"
+  "CMakeFiles/raycaster.dir/src/Synth.cpp.o.d"
+  "CMakeFiles/raycaster.dir/src/Textures.cpp.o"
+  "CMakeFiles/raycaster.dir/src/Textures.cpp.o.d"
+  "CMakeFiles/raycaster.dir/src/Video.cpp.o"
+  "CMakeFiles/raycaster.dir/src/Video.cpp.o.d"
+  "CMakeFiles/raycaster.dir/src/Window.cpp.o"
+  "CMakeFiles/raycaster.dir/src/Window.cpp.o.d"
+  "CMakeFiles/raycaster.dir/src/main.cpp.o"
+  "CMakeFiles/raycaster.dir/src/main.cpp.o.d"
+  "raycaster"
+  "raycaster.pdb"
+)
+
+# Per-language clean rules from dependency scanning.
+foreach(lang CXX)
+  include(CMakeFiles/raycaster.dir/cmake_clean_${lang}.cmake OPTIONAL)
+endforeach()

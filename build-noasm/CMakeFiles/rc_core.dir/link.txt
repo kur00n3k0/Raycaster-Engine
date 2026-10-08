@@ -1,0 +1,2 @@
+/usr/bin/llvm-ar qc librc_core.a CMakeFiles/rc_core.dir/src/Reference.cpp.o
+/usr/bin/llvm-ranlib librc_core.a

@@ -1,0 +1,134 @@
+[
+{
+  "directory": "/home/peter/Projects/RaycasterEngine/build-release-noasm",
+  "command": "/usr/bin/clang++ -DRC_USE_ASM=0 -I/home/peter/Projects/RaycasterEngine/include -O3 -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -fno-exceptions -fno-rtti -o CMakeFiles/rc_core.dir/src/Reference.cpp.o -c /home/peter/Projects/RaycasterEngine/src/Reference.cpp",
+  "file": "/home/peter/Projects/RaycasterEngine/src/Reference.cpp",
+  "output": "CMakeFiles/rc_core.dir/src/Reference.cpp.o"
+},
+{
+  "directory": "/home/peter/Projects/RaycasterEngine/build-release-noasm",
+  "command": "/usr/bin/clang++ -DRC_USE_ASM=0 -I/home/peter/Projects/RaycasterEngine/include -isystem /usr/include/AL -O3 -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -fno-exceptions -fno-rtti -o CMakeFiles/raycaster.dir/src/main.cpp.o -c /home/peter/Projects/RaycasterEngine/src/main.cpp",
+  "file": "/home/peter/Projects/RaycasterEngine/src/main.cpp",
+  "output": "CMakeFiles/raycaster.dir/src/main.cpp.o"
+},
+{
+  "directory": "/home/peter/Projects/RaycasterEngine/build-release-noasm",
+  "command": "/usr/bin/clang++ -DRC_USE_ASM=0 -I/home/peter/Projects/RaycasterEngine/include -isystem /usr/include/AL -O3 -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -fno-exceptions -fno-rtti -o CMakeFiles/raycaster.dir/src/Window.cpp.o -c /home/peter/Projects/RaycasterEngine/src/Window.cpp",
+  "file": "/home/peter/Projects/RaycasterEngine/src/Window.cpp",
+  "output": "CMakeFiles/raycaster.dir/src/Window.cpp.o"
+},
+{
+  "directory": "/home/peter/Projects/RaycasterEngine/build-release-noasm",
+  "command": "/usr/bin/clang++ -DRC_USE_ASM=0 -I/home/peter/Projects/RaycasterEngine/include -isystem /usr/include/AL -O3 -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -fno-exceptions -fno-rtti -o CMakeFiles/raycaster.dir/src/GLCheck.cpp.o -c /home/peter/Projects/RaycasterEngine/src/GLCheck.cpp",
+  "file": "/home/peter/Projects/RaycasterEngine/src/GLCheck.cpp",
+  "output": "CMakeFiles/raycaster.dir/src/GLCheck.cpp.o"
+},
+{
+  "directory": "/home/peter/Projects/RaycasterEngine/build-release-noasm",
+  "command": "/usr/bin/clang++ -DRC_USE_ASM=0 -I/home/peter/Projects/RaycasterEngine/include -isystem /usr/include/AL -O3 -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -fno-exceptions -fno-rtti -o CMakeFiles/raycaster.dir/src/Video.cpp.o -c /home/peter/Projects/RaycasterEngine/src/Video.cpp",
+  "file": "/home/peter/Projects/RaycasterEngine/src/Video.cpp",
+  "output": "CMakeFiles/raycaster.dir/src/Video.cpp.o"
+},
+{
+  "directory": "/home/peter/Projects/RaycasterEngine/build-release-noasm",
+  "command": "/usr/bin/clang++ -DRC_USE_ASM=0 -I/home/peter/Projects/RaycasterEngine/include -isystem /usr/include/AL -O3 -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -fno-exceptions -fno-rtti -o CMakeFiles/raycaster.dir/src/Palette.cpp.o -c /home/peter/Projects/RaycasterEngine/src/Palette.cpp",
+  "file": "/home/peter/Projects/RaycasterEngine/src/Palette.cpp",
+  "output": "CMakeFiles/raycaster.dir/src/Palette.cpp.o"
+},
+{
+  "directory": "/home/peter/Projects/RaycasterEngine/build-release-noasm",
+  "command": "/usr/bin/clang++ -DRC_USE_ASM=0 -I/home/peter/Projects/RaycasterEngine/include -isystem /usr/include/AL -O3 -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -fno-exceptions -fno-rtti -o CMakeFiles/raycaster.dir/src/Map.cpp.o -c /home/peter/Projects/RaycasterEngine/src/Map.cpp",
+  "file": "/home/peter/Projects/RaycasterEngine/src/Map.cpp",
+  "output": "CMakeFiles/raycaster.dir/src/Map.cpp.o"
+},
+{
+  "directory": "/home/peter/Projects/RaycasterEngine/build-release-noasm",
+  "command": "/usr/bin/clang++ -DRC_USE_ASM=0 -I/home/peter/Projects/RaycasterEngine/include -isystem /usr/include/AL -O3 -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -fno-exceptions -fno-rtti -o CMakeFiles/raycaster.dir/src/Game.cpp.o -c /home/peter/Projects/RaycasterEngine/src/Game.cpp",
+  "file": "/home/peter/Projects/RaycasterEngine/src/Game.cpp",
+  "output": "CMakeFiles/raycaster.dir/src/Game.cpp.o"
+},
+{
+  "directory": "/home/peter/Projects/RaycasterEngine/build-release-noasm",
+  "command": "/usr/bin/clang++ -DRC_USE_ASM=0 -I/home/peter/Projects/RaycasterEngine/include -isystem /usr/include/AL -O3 -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -fno-exceptions -fno-rtti -o CMakeFiles/raycaster.dir/src/Raycaster.cpp.o -c /home/peter/Projects/RaycasterEngine/src/Raycaster.cpp",
+  "file": "/home/peter/Projects/RaycasterEngine/src/Raycaster.cpp",
+  "output": "CMakeFiles/raycaster.dir/src/Raycaster.cpp.o"
+},
+{
+  "directory": "/home/peter/Projects/RaycasterEngine/build-release-noasm",
+  "command": "/usr/bin/clang++ -DRC_USE_ASM=0 -I/home/peter/Projects/RaycasterEngine/include -isystem /usr/include/AL -O3 -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -fno-exceptions -fno-rtti -o CMakeFiles/raycaster.dir/src/Textures.cpp.o -c /home/peter/Projects/RaycasterEngine/src/Textures.cpp",
+  "file": "/home/peter/Projects/RaycasterEngine/src/Textures.cpp",
+  "output": "CMakeFiles/raycaster.dir/src/Textures.cpp.o"
+},
+{
+  "directory": "/home/peter/Projects/RaycasterEngine/build-release-noasm",
+  "command": "/usr/bin/clang++ -DRC_USE_ASM=0 -I/home/peter/Projects/RaycasterEngine/include -isystem /usr/include/AL -O3 -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -fno-exceptions -fno-rtti -o CMakeFiles/raycaster.dir/src/Sprites.cpp.o -c /home/peter/Projects/RaycasterEngine/src/Sprites.cpp",
+  "file": "/home/peter/Projects/RaycasterEngine/src/Sprites.cpp",
+  "output": "CMakeFiles/raycaster.dir/src/Sprites.cpp.o"
+},
+{
+  "directory": "/home/peter/Projects/RaycasterEngine/build-release-noasm",
+  "command": "/usr/bin/clang++ -DRC_USE_ASM=0 -I/home/peter/Projects/RaycasterEngine/include -isystem /usr/include/AL -O3 -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -fno-exceptions -fno-rtti -o CMakeFiles/raycaster.dir/src/Audio.cpp.o -c /home/peter/Projects/RaycasterEngine/src/Audio.cpp",
+  "file": "/home/peter/Projects/RaycasterEngine/src/Audio.cpp",
+  "output": "CMakeFiles/raycaster.dir/src/Audio.cpp.o"
+},
+{
+  "directory": "/home/peter/Projects/RaycasterEngine/build-release-noasm",
+  "command": "/usr/bin/clang++ -DRC_USE_ASM=0 -I/home/peter/Projects/RaycasterEngine/include -isystem /usr/include/AL -O3 -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -fno-exceptions -fno-rtti -o CMakeFiles/raycaster.dir/src/Midi.cpp.o -c /home/peter/Projects/RaycasterEngine/src/Midi.cpp",
+  "file": "/home/peter/Projects/RaycasterEngine/src/Midi.cpp",
+  "output": "CMakeFiles/raycaster.dir/src/Midi.cpp.o"
+},
+{
+  "directory": "/home/peter/Projects/RaycasterEngine/build-release-noasm",
+  "command": "/usr/bin/clang++ -DRC_USE_ASM=0 -I/home/peter/Projects/RaycasterEngine/include -isystem /usr/include/AL -O3 -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -fno-exceptions -fno-rtti -o CMakeFiles/raycaster.dir/src/Synth.cpp.o -c /home/peter/Projects/RaycasterEngine/src/Synth.cpp",
+  "file": "/home/peter/Projects/RaycasterEngine/src/Synth.cpp",
+  "output": "CMakeFiles/raycaster.dir/src/Synth.cpp.o"
+},
+{
+  "directory": "/home/peter/Projects/RaycasterEngine/build-release-noasm",
+  "command": "/usr/bin/clang++ -DRC_USE_ASM=0 -I/home/peter/Projects/RaycasterEngine/include -isystem /usr/include/AL -O3 -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -fno-exceptions -fno-rtti -o CMakeFiles/raycaster.dir/src/Hud.cpp.o -c /home/peter/Projects/RaycasterEngine/src/Hud.cpp",
+  "file": "/home/peter/Projects/RaycasterEngine/src/Hud.cpp",
+  "output": "CMakeFiles/raycaster.dir/src/Hud.cpp.o"
+},
+{
+  "directory": "/home/peter/Projects/RaycasterEngine/build-release-noasm",
+  "command": "/usr/bin/clang++ -DRC_USE_ASM=0 -I/home/peter/Projects/RaycasterEngine/include -isystem /usr/include/AL -O3 -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -fno-exceptions -fno-rtti -o CMakeFiles/raycaster.dir/src/Config.cpp.o -c /home/peter/Projects/RaycasterEngine/src/Config.cpp",
+  "file": "/home/peter/Projects/RaycasterEngine/src/Config.cpp",
+  "output": "CMakeFiles/raycaster.dir/src/Config.cpp.o"
+},
+{
+  "directory": "/home/peter/Projects/RaycasterEngine/build-release-noasm",
+  "command": "/usr/bin/clang++  -I/home/peter/Projects/RaycasterEngine/include -O3 -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -fno-exceptions -fno-rtti -o CMakeFiles/gen_textures.dir/tools/gen_textures.cpp.o -c /home/peter/Projects/RaycasterEngine/tools/gen_textures.cpp",
+  "file": "/home/peter/Projects/RaycasterEngine/tools/gen_textures.cpp",
+  "output": "CMakeFiles/gen_textures.dir/tools/gen_textures.cpp.o"
+},
+{
+  "directory": "/home/peter/Projects/RaycasterEngine/build-release-noasm",
+  "command": "/usr/bin/clang++  -I/home/peter/Projects/RaycasterEngine/include -O3 -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -fno-exceptions -fno-rtti -o CMakeFiles/gen_textures.dir/src/Palette.cpp.o -c /home/peter/Projects/RaycasterEngine/src/Palette.cpp",
+  "file": "/home/peter/Projects/RaycasterEngine/src/Palette.cpp",
+  "output": "CMakeFiles/gen_textures.dir/src/Palette.cpp.o"
+},
+{
+  "directory": "/home/peter/Projects/RaycasterEngine/build-release-noasm",
+  "command": "/usr/bin/clang++   -O3 -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -fno-exceptions -fno-rtti -o CMakeFiles/gen_sounds.dir/tools/gen_sounds.cpp.o -c /home/peter/Projects/RaycasterEngine/tools/gen_sounds.cpp",
+  "file": "/home/peter/Projects/RaycasterEngine/tools/gen_sounds.cpp",
+  "output": "CMakeFiles/gen_sounds.dir/tools/gen_sounds.cpp.o"
+},
+{
+  "directory": "/home/peter/Projects/RaycasterEngine/build-release-noasm",
+  "command": "/usr/bin/clang++  -I/home/peter/Projects/RaycasterEngine/include -O3 -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -fno-exceptions -fno-rtti -o CMakeFiles/render_midi.dir/tools/render_midi.cpp.o -c /home/peter/Projects/RaycasterEngine/tools/render_midi.cpp",
+  "file": "/home/peter/Projects/RaycasterEngine/tools/render_midi.cpp",
+  "output": "CMakeFiles/render_midi.dir/tools/render_midi.cpp.o"
+},
+{
+  "directory": "/home/peter/Projects/RaycasterEngine/build-release-noasm",
+  "command": "/usr/bin/clang++  -I/home/peter/Projects/RaycasterEngine/include -O3 -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -fno-exceptions -fno-rtti -o CMakeFiles/render_midi.dir/src/Midi.cpp.o -c /home/peter/Projects/RaycasterEngine/src/Midi.cpp",
+  "file": "/home/peter/Projects/RaycasterEngine/src/Midi.cpp",
+  "output": "CMakeFiles/render_midi.dir/src/Midi.cpp.o"
+},
+{
+  "directory": "/home/peter/Projects/RaycasterEngine/build-release-noasm",
+  "command": "/usr/bin/clang++  -I/home/peter/Projects/RaycasterEngine/include -O3 -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -fno-exceptions -fno-rtti -o CMakeFiles/render_midi.dir/src/Synth.cpp.o -c /home/peter/Projects/RaycasterEngine/src/Synth.cpp",
+  "file": "/home/peter/Projects/RaycasterEngine/src/Synth.cpp",
+  "output": "CMakeFiles/render_midi.dir/src/Synth.cpp.o"
+}
+]

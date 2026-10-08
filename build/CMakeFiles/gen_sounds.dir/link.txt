@@ -1,0 +1,1 @@
+/usr/bin/clang++ -g -Xlinker --dependency-file=CMakeFiles/gen_sounds.dir/link.d CMakeFiles/gen_sounds.dir/tools/gen_sounds.cpp.o -o gen_sounds
