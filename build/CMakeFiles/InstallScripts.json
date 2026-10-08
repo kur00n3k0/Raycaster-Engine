@@ -1,7 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"/home/peter/Projects/RaycasterEngine/build/cmake_install.cmake"
-	],
-	"Parallel" : false
-}

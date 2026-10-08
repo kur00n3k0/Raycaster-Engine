@@ -1,1 +1,0 @@
-/usr/bin/clang++ -O3 -DNDEBUG -Xlinker --dependency-file=CMakeFiles/gen_textures.dir/link.d CMakeFiles/gen_textures.dir/tools/gen_textures.cpp.o CMakeFiles/gen_textures.dir/src/Palette.cpp.o -o gen_textures

@@ -1,1 +1,0 @@
-/usr/bin/clang++ -O3 -DNDEBUG -Xlinker --dependency-file=CMakeFiles/asm_equivalence.dir/link.d CMakeFiles/asm_equivalence.dir/tests/asm_equivalence.cpp.o -o asm_equivalence  librc_core.a

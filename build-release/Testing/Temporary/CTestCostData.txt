@@ -1,2 +1,0 @@
-asm_equivalence 1 5.52151
----

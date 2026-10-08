@@ -1,1 +1,0 @@
-/usr/bin/clang++ -g -Xlinker --dependency-file=CMakeFiles/bench_routines.dir/link.d CMakeFiles/bench_routines.dir/tools/bench_routines.cpp.o -o bench_routines  librc_core.a

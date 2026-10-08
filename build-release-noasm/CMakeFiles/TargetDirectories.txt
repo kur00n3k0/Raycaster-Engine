@@ -1,7 +1,0 @@
-/home/peter/Projects/RaycasterEngine/build-release-noasm/CMakeFiles/rc_core.dir
-/home/peter/Projects/RaycasterEngine/build-release-noasm/CMakeFiles/raycaster.dir
-/home/peter/Projects/RaycasterEngine/build-release-noasm/CMakeFiles/gen_textures.dir
-/home/peter/Projects/RaycasterEngine/build-release-noasm/CMakeFiles/gen_sounds.dir
-/home/peter/Projects/RaycasterEngine/build-release-noasm/CMakeFiles/render_midi.dir
-/home/peter/Projects/RaycasterEngine/build-release-noasm/CMakeFiles/edit_cache.dir
-/home/peter/Projects/RaycasterEngine/build-release-noasm/CMakeFiles/rebuild_cache.dir
