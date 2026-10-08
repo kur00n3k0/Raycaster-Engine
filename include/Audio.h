@@ -38,6 +38,16 @@ enum {
 	MUSIC_BUFFER_FRAMES = 2048	/* ~46 ms each; ~186 ms of music queued */
 };
 
+/*
+ * Mix balance at volume 1. Effects are short and loud (about -8 dB RMS in the
+ * WAVs), the rendered music sits near -21 dB RMS, so effects are turned down
+ * and the music is left at full gain: effects end up about 5 dB on top.
+ * OpenAL clamps source gain to 1, so the music cannot go higher here; make it
+ * louder with SYNTH_GAIN in Synth.cpp instead.
+ */
+static const float AUDIO_SFX_GAIN = 0.5f;
+static const float AUDIO_MUSIC_GAIN = 1.0f;
+
 struct MusicPlayer;
 
 struct Audio {

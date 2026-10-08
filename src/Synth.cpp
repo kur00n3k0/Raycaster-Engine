@@ -11,7 +11,7 @@
 /*
  * FluidSynth's own gain (default 0.2) is set so a full GM arrangement peaks
  * a few dB under full scale; the game scales music further with the OpenAL
- * source gain (MUSIC_GAIN * music_volume).
+ * source gain (AUDIO_MUSIC_GAIN * music_volume).
  */
 static const double SYNTH_GAIN = 0.9;
 static const int SYNTH_POLYPHONY = 128;

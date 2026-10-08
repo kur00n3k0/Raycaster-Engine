@@ -48,7 +48,6 @@ extern char **environ;
 
 static const char *MAP_DIR = "assets/maps";
 static const char *CONFIG_FILE = "raycaster.cfg";	/* the game's: SoundFont and music volume */
-static const float PREVIEW_GAIN = 0.35f;		/* MUSIC_GAIN in main.cpp */
 static const char *INI_FILE = "map_editor.ini";
 static const float ZOOM_MIN = 4.0f;
 static const float ZOOM_MAX = 96.0f;
@@ -903,7 +902,7 @@ static void start_preview(Editor *ed)
 	}
 	char path[256];
 	snprintf(path, sizeof(path), "%s%s", MAP_MUSIC_DIR, song);
-	if (!audio_play_music(&ed->audio, path, ed->config.soundfont, PREVIEW_GAIN * ed->config.musicVolume)) {
+	if (!audio_play_music(&ed->audio, path, ed->config.soundfont, AUDIO_MUSIC_GAIN * ed->config.musicVolume)) {
 		set_status(ed, "Cannot play %s (see the terminal)", path);
 		return;
 	}

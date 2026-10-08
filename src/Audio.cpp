@@ -13,7 +13,6 @@
 /* Wolf3D-ish falloff: full volume up close, silent past MAX_DISTANCE tiles. */
 static const float REFERENCE_DISTANCE = 2.0f;
 static const float MAX_DISTANCE = 24.0f;
-static const float SFX_GAIN = 0.8f;
 
 static const char *const SFX_PATHS[SFX_COUNT] = {
 	"assets/sounds/door_open.wav",
@@ -168,7 +167,7 @@ static bool load_buffer(const char *path, bool requireMono, ALuint *buffer)
 bool audio_init(Audio *audio, float sfxVolume)
 {
 	memset(audio, 0, sizeof(*audio));
-	audio->sfxGain = SFX_GAIN * sfxVolume;
+	audio->sfxGain = AUDIO_SFX_GAIN * sfxVolume;
 
 	ALCdevice *device = alcOpenDevice(nullptr);
 	if (!device) {

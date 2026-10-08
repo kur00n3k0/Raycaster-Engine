@@ -222,6 +222,10 @@ and prove equivalence with a test before switching it on.
   `soundfont`, else first `.sf2` in assets/music, FluidSynth's `synth.default-soundfont`,
   /usr/share/soundfonts, /usr/share/sounds/sf2. None found = warning, game runs without music.
   `SYNTH_GAIN` 0.9 matches the old FM synth's loudness (render_midi: ~-21.5 dB RMS, -3.4 dB peak).
+- Mix balance (user: SFX were far louder than music): `AUDIO_SFX_GAIN` 0.5 and `AUDIO_MUSIC_GAIN` 1.0
+  in Audio.h, shared by game and editor preview. Measured in game (wave capture): music ~-21 dB
+  RMS, pistol/enemy sounds ~-9 to -15 dB, peaks under 0 dBFS. Source gain is clamped to 1, so
+  more music level has to come from `SYNTH_GAIN`.
 - Game code never calls audio: it queues `SoundEvent`s in `Game::sounds`; `main` plays and
   clears them after the ticks. Map (x, y) is OpenAL (x, 0, y), listener up = +y.
 - No device = silent run (`Audio::enabled` false). Check audio without speakers or recording

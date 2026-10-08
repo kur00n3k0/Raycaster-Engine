@@ -18,7 +18,6 @@
 
 static const char *START_MAP = "assets/maps/e1m1.txt";
 static const char *DEFAULT_CONFIG = "raycaster.cfg";
-static const float MUSIC_GAIN = 0.35f;
 static const double MAX_FRAME_TIME = 0.25;	/* don't spiral after a hitch */
 static const double FRAME_RATE = 60.0;		/* hard cap, with or without vsync */
 static const double SPIN_TIME = 0.0005;		/* finish the wait by spinning: sleep wakes late */
@@ -177,7 +176,7 @@ int main(int argc, char **argv)
 	if (config.music && game.map.music[0]) {
 		char musicPath[256];
 		snprintf(musicPath, sizeof(musicPath), "%s%s", MAP_MUSIC_DIR, game.map.music);
-		if (audio_play_music(&audio, musicPath, config.soundfont, MUSIC_GAIN * config.musicVolume))
+		if (audio_play_music(&audio, musicPath, config.soundfont, AUDIO_MUSIC_GAIN * config.musicVolume))
 			printf("Music: %s\n", musicPath);
 		else
 			fprintf(stderr, "Music disabled\n");
