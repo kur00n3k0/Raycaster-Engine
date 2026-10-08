@@ -1,10 +1,12 @@
 /*
- * Renders a MIDI file through the engine's synth into a 44.1 kHz stereo
- * WAV, to listen to or inspect music without running the game:
+ * Renders a MIDI file through the engine's music path (our SMF parser +
+ * FluidSynth) into a 44.1 kHz stereo WAV, to listen to or inspect music
+ * without running the game:
  *
- *     ./build/render_midi assets/music/e1m1.mid out.wav [seconds]
+ *     ./build/render_midi assets/music/e1m1.mid out.wav [seconds [soundfont.sf2]]
  *
- * Without `seconds` it renders exactly one pass of the song.
+ * Without `seconds` (or with 0) it renders exactly one pass of the song.
+ * Without a SoundFont it searches like the game does.
  */
 
 #include "Midi.h"
@@ -28,15 +30,16 @@ static void put_u16(FILE *f, uint16_t v)
 
 int main(int argc, char **argv)
 {
-	if (argc != 3 && argc != 4) {
-		fprintf(stderr, "usage: %s <in.mid> <out.wav> [seconds]\n", argv[0]);
+	if (argc < 3 || argc > 5) {
+		fprintf(stderr, "usage: %s <in.mid> <out.wav> [seconds [soundfont.sf2]]\n", argv[0]);
 		return 1;
 	}
 
 	static MusicPlayer player;
-	if (!music_open(&player, argv[1], RATE))
+	if (!music_open(&player, argv[1], RATE, argc == 5 ? argv[4] : nullptr))
 		return 1;
-	uint32_t frames = argc == 4 ? (uint32_t)(atof(argv[3]) * RATE) : player.song.length;
+	double seconds = argc >= 4 ? atof(argv[3]) : 0.0;
+	uint32_t frames = seconds > 0.0 ? (uint32_t)(seconds * RATE) : player.song.length;
 	printf("%s: %d events, %.2f s per loop\n", argv[1], player.song.count,
 		(double)player.song.length / RATE);
 

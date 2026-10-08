@@ -282,13 +282,13 @@ static void queue_music(Audio *audio, ALuint buffer)
 	AL_CHECK(alSourceQueueBuffers(audio->musicSource, 1, &buffer));
 }
 
-bool audio_play_music(Audio *audio, const char *path, float gain)
+bool audio_play_music(Audio *audio, const char *path, const char *soundfont, float gain)
 {
 	if (!audio->enabled)
 		return true;
 
 	audio->music = (MusicPlayer *)malloc(sizeof(MusicPlayer));
-	if (!audio->music || !music_open(audio->music, path, MUSIC_RATE)) {
+	if (!audio->music || !music_open(audio->music, path, MUSIC_RATE, soundfont)) {
 		free(audio->music);
 		audio->music = nullptr;
 		return false;

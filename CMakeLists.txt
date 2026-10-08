@@ -17,6 +17,8 @@ find_package(glfw3 3.3 REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(OpenAL REQUIRED)
 find_package(glm REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(FLUIDSYNTH REQUIRED IMPORTED_TARGET fluidsynth>=2.0)
 
 set(RC_WARNINGS -Wall -Wextra -Wpedantic -fno-exceptions -fno-rtti)
 
@@ -72,6 +74,7 @@ target_link_libraries(raycaster PRIVATE
 	OpenGL::GL
 	OpenAL::OpenAL
 	glm::glm
+	PkgConfig::FLUIDSYNTH
 )
 
 # ---------------------------------------------------------------------------
@@ -84,10 +87,11 @@ target_compile_options(gen_textures PRIVATE ${RC_WARNINGS})
 add_executable(gen_sounds tools/gen_sounds.cpp)
 target_compile_options(gen_sounds PRIVATE ${RC_WARNINGS})
 
-# Renders a .mid through the engine's synth to a .wav, to check music offline.
+# Renders a .mid through the engine's music path (FluidSynth) to a .wav, to check music offline.
 add_executable(render_midi tools/render_midi.cpp src/Midi.cpp src/Synth.cpp)
 target_include_directories(render_midi PRIVATE include)
 target_compile_options(render_midi PRIVATE ${RC_WARNINGS})
+target_link_libraries(render_midi PRIVATE PkgConfig::FLUIDSYNTH)
 
 # ---------------------------------------------------------------------------
 # ASM vs C++ equivalence tests

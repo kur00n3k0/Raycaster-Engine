@@ -29,6 +29,7 @@ Purist rules:
 | GLEW            | GL function loading (`glewExperimental = GL_TRUE`)      |
 | OpenAL          | Output for SFX (3D sources) and streamed MIDI music     |
 | GLM             | Vector math for the player, camera and game logic       |
+| FluidSynth 2    | MIDI synth for the music (General MIDI .sf2 SoundFont)  |
 
 GLM is a C++ header library, which is why the "C" side of the project is C++
 written in a plain, C-like style (see Conventions). Target platform is Linux
@@ -63,7 +64,7 @@ versions instead. Both must always build and must produce identical output.
                                  ▼
                          Fullscreen triangle, letterboxed, nearest filtering
  OpenAL: listener follows the player, one pooled source per active sound.
- Music: .mid -> hand-written SMF parser -> own FM synth -> streamed buffer queue.
+ Music: .mid -> hand-written SMF parser -> FluidSynth -> streamed buffer queue.
 ```
 
 Frame flow: `poll input -> fixed-step update(s) -> render to framebuffer -> upload -> present`.
@@ -84,7 +85,7 @@ src/
   Palette.cpp       PLAYPAL-style palette + COLORMAP light tables (built-in palette)
   Audio.cpp         OpenAL device/context, WAV loader, SFX source pool, music stream
   Midi.cpp          Standard MIDI File parser, tempo map, looping MusicPlayer
-  Synth.cpp         2-op FM software synth (OPL-style), GM families, drum kit
+  Synth.cpp         FluidSynth wrapper: SoundFont search, MIDI messages, s16 render
   Game.cpp          player, collision, doors, pushwalls, pickups, enemy AI, hitscan
   Hud.cpp           status bar, 5x7 bitmap font, first-person weapon, messages, death screen
   Config.cpp        raycaster.cfg: video/audio settings and key bindings
@@ -99,7 +100,7 @@ assets/   maps/*.txt, textures/*.pcx, sprites/*.pcx, sounds/*.wav (SFX), music/*
 tests/    asm_equivalence.cpp
 tools/    gen_textures.cpp (placeholder textures + sprites), gen_sounds.cpp (SFX .wav + music .mid),
           bench_routines.cpp (ASM vs C++ timing),
-          render_midi.cpp (render a .mid through the synth to .wav for offline checks)
+          render_midi.cpp (render a .mid through FluidSynth to .wav for offline checks)
 lib/      reserved for vendored deps (currently empty, system libs are used)
 ```
 
@@ -207,10 +208,16 @@ and prove equivalence with a test before switching it on.
   the HUD draws the status bar below it and the weapon over it.
 - `static Game game;` in main: `Game` is large (entity array), keep it off the stack.
 - Audio: music is MIDI (user decision): `.mid` -> `midi_load` (format 0/1, tempo map, events
-  in sample time) -> `Synth` (2-op FM, patch per GM family = program / 8, channel 10 drums)
+  in sample time) -> `Synth` (FluidSynth, user decision; replaced the old hand-written FM synth)
   -> 4 x 2048-frame stereo buffers queued on one relative source, refilled in `audio_update`
   each frame. SFX stay as mono 16-bit WAVs (OpenAL only spatialises mono). New sounds go in
   `Sfx` + `SFX_PATHS` (a static_assert checks the count) + `gen_sounds`.
+- FluidSynth is used only as a renderer: no FluidSynth audio driver, no `fluid_player` (our SMF
+  parser stays, per the hand-written-loaders rule). `synth_init` registers only the "file" driver
+  before `new_fluid_settings()`, otherwise ALSA/SDL probing spams the console. SoundFont: config
+  `soundfont`, else first `.sf2` in assets/music, FluidSynth's `synth.default-soundfont`,
+  /usr/share/soundfonts, /usr/share/sounds/sf2. None found = warning, game runs without music.
+  `SYNTH_GAIN` 0.9 matches the old FM synth's loudness (render_midi: ~-21.5 dB RMS, -3.4 dB peak).
 - Game code never calls audio: it queues `SoundEvent`s in `Game::sounds`; `main` plays and
   clears them after the ticks. Map (x, y) is OpenAL (x, 0, y), listener up = +y.
 - No device = silent run (`Audio::enabled` false). Check audio without speakers or recording

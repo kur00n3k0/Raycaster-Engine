@@ -1,378 +1,165 @@
 #include "Synth.h"
 
-#include <math.h>
+#include <fluidsynth.h>
+
+#include <dirent.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 /*
- * An instrument. Every voice is carrier + modulator FM:
- *
- *   out = sin(carPhase + index(t) * sin(modPhase))     (phases in turns)
- *
- * with modulator frequency = carrier * modRatio and index(t) decaying from
- * modIndex towards modIndex * modSustain. Drums add noise and a pitch sweep.
+ * FluidSynth's own gain (default 0.2) is set so a full GM arrangement peaks
+ * a few dB under full scale; the game scales music further with the OpenAL
+ * source gain (MUSIC_GAIN * music_volume).
  */
-struct Patch {
-	float modRatio;
-	float modIndex;
-	float modDecay;		/* 1/s, how fast the index falls (0 = constant) */
-	float modSustain;	/* fraction of modIndex it falls to */
-	float attack;		/* seconds to full level */
-	float decay;		/* seconds to fall towards sustain */
-	float sustain;		/* level held while the key is down; 0 = percussive */
-	float release;		/* seconds to fade after note-off */
-	float noise;		/* 0..1 white noise mix (drums) */
-	float noiseTone;	/* one-pole low-pass coefficient for the noise, 1 = raw */
-	float fixedHz;		/* > 0: ignore the note number (drums) */
-	float sweep;		/* starting pitch multiplier - 1, decays away (drums) */
-	float sweepDecay;	/* 1/s */
-	float gain;
+static const double SYNTH_GAIN = 0.9;
+static const int SYNTH_POLYPHONY = 128;
+
+/* Directories scanned for the first *.sf2 (alphabetical) when none is given. */
+static const char *SOUNDFONT_DIRS[] = {
+	"assets/music",
+	"/usr/share/soundfonts",
+	"/usr/share/sounds/sf2",
+	"/usr/local/share/soundfonts",
 };
 
-enum { STAGE_ATTACK, STAGE_DECAY, STAGE_SUSTAIN, STAGE_RELEASE };
-
-/* Melodic patches, one per General MIDI family (program / 8). */
-static const Patch FAMILY_PATCHES[16] = {
-	/* ratio index mdecay msus   att    dec   sus   rel   noise tone fixed sweep sdec gain */
-	{ 1.0f, 1.6f, 3.0f, 0.2f, 0.002f, 0.9f, 0.0f, 0.20f, 0, 1, 0, 0, 0, 0.9f },	/* piano */
-	{ 3.5f, 2.0f, 2.5f, 0.1f, 0.001f, 1.0f, 0.0f, 0.30f, 0, 1, 0, 0, 0, 0.7f },	/* chromatic perc */
-	{ 2.0f, 0.8f, 0.0f, 1.0f, 0.005f, 0.05f, 1.0f, 0.06f, 0, 1, 0, 0, 0, 0.6f },	/* organ */
-	{ 1.0f, 2.2f, 4.0f, 0.2f, 0.002f, 1.2f, 0.0f, 0.10f, 0, 1, 0, 0, 0, 0.8f },	/* guitar */
-	{ 1.0f, 2.0f, 5.0f, 0.4f, 0.003f, 0.40f, 0.5f, 0.05f, 0, 1, 0, 0, 0, 1.0f },	/* bass */
-	{ 1.0f, 1.0f, 0.0f, 1.0f, 0.120f, 0.20f, 0.9f, 0.30f, 0, 1, 0, 0, 0, 0.5f },	/* strings */
-	{ 1.0f, 1.2f, 0.0f, 1.0f, 0.150f, 0.20f, 0.9f, 0.40f, 0, 1, 0, 0, 0, 0.5f },	/* ensemble */
-	{ 1.0f, 3.0f, 1.0f, 0.7f, 0.040f, 0.20f, 0.8f, 0.10f, 0, 1, 0, 0, 0, 0.6f },	/* brass */
-	{ 2.0f, 1.5f, 0.0f, 1.0f, 0.020f, 0.10f, 0.9f, 0.08f, 0, 1, 0, 0, 0, 0.6f },	/* reed */
-	{ 1.0f, 0.3f, 0.0f, 1.0f, 0.050f, 0.10f, 0.9f, 0.10f, 0, 1, 0, 0, 0, 0.6f },	/* pipe */
-	{ 2.0f, 1.4f, 0.0f, 1.0f, 0.005f, 0.10f, 0.8f, 0.08f, 0, 1, 0, 0, 0, 0.6f },	/* synth lead: odd harmonics, square-ish */
-	{ 1.0f, 0.8f, 0.0f, 1.0f, 0.300f, 0.30f, 0.9f, 0.60f, 0, 1, 0, 0, 0, 0.5f },	/* synth pad */
-	{ 1.5f, 2.5f, 1.5f, 0.3f, 0.010f, 0.50f, 0.6f, 0.30f, 0, 1, 0, 0, 0, 0.6f },	/* synth fx */
-	{ 3.0f, 1.8f, 3.0f, 0.2f, 0.002f, 0.60f, 0.0f, 0.20f, 0, 1, 0, 0, 0, 0.7f },	/* ethnic */
-	{ 1.4f, 2.5f, 6.0f, 0.1f, 0.001f, 0.40f, 0.0f, 0.10f, 0, 1, 0, 0, 0, 0.8f },	/* percussive */
-	{ 1.7f, 3.0f, 0.5f, 0.5f, 0.050f, 0.50f, 0.5f, 0.50f, 0.2f, 0.3f, 0, 0, 0, 0.5f },/* sound effects */
-};
-
-/* Drum kit for channel 10, picked by note number in drum_patch(). */
-static const Patch DRUM_KICK  = { 1.0f, 0.0f, 0, 0, 0.001f, 0.25f, 0.0f, 0.05f, 0.05f, 0.1f, 50.0f, 2.5f, 30.0f, 1.4f };
-static const Patch DRUM_SNARE = { 1.0f, 0.0f, 0, 0, 0.001f, 0.18f, 0.0f, 0.05f, 0.75f, 0.8f, 190.0f, 0.3f, 40.0f, 0.9f };
-static const Patch DRUM_HAT   = { 1.0f, 0.0f, 0, 0, 0.001f, 0.05f, 0.0f, 0.02f, 1.0f, 1.0f, 0.0f, 0, 0, 0.35f };
-static const Patch DRUM_OPEN  = { 1.0f, 0.0f, 0, 0, 0.001f, 0.30f, 0.0f, 0.10f, 1.0f, 1.0f, 0.0f, 0, 0, 0.30f };
-static const Patch DRUM_CRASH = { 1.0f, 0.0f, 0, 0, 0.002f, 1.20f, 0.0f, 0.30f, 1.0f, 0.7f, 0.0f, 0, 0, 0.35f };
-static const Patch DRUM_TOM   = { 1.0f, 0.0f, 0, 0, 0.001f, 0.30f, 0.0f, 0.05f, 0.1f, 0.2f, 0.0f, 0.5f, 12.0f, 1.0f };
-
-static const Patch *drum_patch(uint8_t note)
+static bool has_sf2_suffix(const char *name)
 {
-	switch (note) {
-	case 35: case 36:			return &DRUM_KICK;
-	case 37: case 38: case 39: case 40:	return &DRUM_SNARE;
-	case 42: case 44:			return &DRUM_HAT;
-	case 46:				return &DRUM_OPEN;
-	case 49: case 51: case 52: case 55: case 57: case 59:
-						return &DRUM_CRASH;
-	case 41: case 43: case 45: case 47: case 48: case 50:
-						return &DRUM_TOM;
-	default:				return &DRUM_SNARE;
-	}
+	size_t n = strlen(name);
+	return n > 4 && strcasecmp(name + n - 4, ".sf2") == 0;
 }
 
-/* ------------------------------------------------------------------------- */
-/* Tables                                                                    */
-/* ------------------------------------------------------------------------- */
-
-enum { SINE_BITS = 12, SINE_SIZE = 1 << SINE_BITS };
-static float g_sine[SINE_SIZE];
-static bool g_sineReady = false;
-
-static void build_sine()
+/* First .sf2 in `dir` by name, written to out. False if there is none. */
+static bool find_in_dir(const char *dir, char *out, size_t outSize)
 {
-	if (g_sineReady)
-		return;
-	for (int i = 0; i < SINE_SIZE; i++)
-		g_sine[i] = sinf(6.28318530718f * (float)i / (float)SINE_SIZE);
-	g_sineReady = true;
-}
-
-/* sin(2 * pi * turns) by table lookup; any real number of turns. */
-static inline float sine(float turns)
-{
-	float f = turns - floorf(turns);
-	return g_sine[(int)(f * (float)SINE_SIZE) & (SINE_SIZE - 1)];
-}
-
-static float note_hz(int note)
-{
-	return 440.0f * powf(2.0f, (float)(note - 69) / 12.0f);
-}
-
-/* ------------------------------------------------------------------------- */
-/* Messages                                                                  */
-/* ------------------------------------------------------------------------- */
-
-static void set_pan(Channel *c, uint8_t value)
-{
-	float p = (float)value / 127.0f * 1.57079633f;	/* 0 = left, 64 = centre, 127 = right */
-	c->panL = cosf(p);
-	c->panR = sinf(p);
-}
-
-static void reset_channel(Channel *c)
-{
-	c->program = 0;
-	c->volume = 100.0f / 127.0f;
-	c->expression = 1.0f;
-	set_pan(c, 64);
-	c->bend = 1.0f;
-	c->sustain = false;
-}
-
-void synth_init(Synth *synth, int sampleRate)
-{
-	build_sine();
-	memset(synth, 0, sizeof(*synth));
-	synth->sampleRate = sampleRate;
-	synth->noise = 0x1234567u;
-	for (int i = 0; i < SYNTH_CHANNELS; i++)
-		reset_channel(&synth->channels[i]);
-}
-
-static void release_voice(Voice *v)
-{
-	v->released = true;
-	v->held = false;
-	v->stage = STAGE_RELEASE;
-}
-
-/* Free voice, else the quietest releasing one, else the oldest. */
-static Voice *allocate_voice(Synth *synth)
-{
-	Voice *best = nullptr;
-	for (int i = 0; i < SYNTH_VOICES; i++) {
-		Voice *v = &synth->voices[i];
-		if (!v->active)
-			return v;
-	}
-	for (int i = 0; i < SYNTH_VOICES; i++) {
-		Voice *v = &synth->voices[i];
-		if (v->released && (!best || v->env < best->env))
-			best = v;
-	}
-	if (best)
-		return best;
-	best = &synth->voices[0];
-	for (int i = 1; i < SYNTH_VOICES; i++) {
-		if (synth->voices[i].age < best->age)
-			best = &synth->voices[i];
-	}
-	return best;
-}
-
-static void note_on(Synth *synth, uint8_t ch, uint8_t note, uint8_t velocity)
-{
-	const Channel *c = &synth->channels[ch];
-	const Patch *patch = ch == SYNTH_DRUM_CHANNEL ? drum_patch(note) : &FAMILY_PATCHES[c->program / 8];
-
-	Voice *v = allocate_voice(synth);
-	memset(v, 0, sizeof(*v));
-	v->active = true;
-	v->channel = ch;
-	v->note = note;
-	v->patch = patch;
-	v->baseHz = patch->fixedHz > 0.0f ? patch->fixedHz : note_hz(note);
-	if (ch == SYNTH_DRUM_CHANNEL && patch == &DRUM_TOM)
-		v->baseHz = note_hz(note) * 0.5f;
-	float vel = (float)velocity / 127.0f;
-	v->gain = vel * vel;
-	v->stage = STAGE_ATTACK;
-	v->age = synth->noteCounter++;
-
-	/* Exponential segments: about -60 dB (x0.001) over the patch's decay/release time. */
-	const float dt = 1.0f / (float)synth->sampleRate;
-	v->attackStep = dt / patch->attack;
-	v->decayMul = expf(-6.9f * dt / patch->decay);
-	v->releaseMul = expf(-6.9f * dt / patch->release);
-	v->sweep = patch->sweep;
-	v->sweepMul = expf(-patch->sweepDecay * dt);
-	v->modFade = 1.0f;
-	v->modMul = expf(-patch->modDecay * dt);
-}
-
-static void note_off(Synth *synth, uint8_t ch, uint8_t note)
-{
-	for (int i = 0; i < SYNTH_VOICES; i++) {
-		Voice *v = &synth->voices[i];
-		if (!v->active || v->released || v->channel != ch || v->note != note)
+	DIR *d = opendir(dir);
+	if (!d)
+		return false;
+	char best[256] = "";
+	while (dirent *e = readdir(d)) {
+		if (!has_sf2_suffix(e->d_name) || strlen(e->d_name) >= sizeof(best))
 			continue;
-		if (synth->channels[ch].sustain)
-			v->held = true;
-		else
-			release_voice(v);
+		if (!best[0] || strcmp(e->d_name, best) < 0)
+			strcpy(best, e->d_name);
 	}
+	closedir(d);
+	if (!best[0])
+		return false;
+	snprintf(out, outSize, "%s/%s", dir, best);
+	return true;
 }
 
-static void control_change(Synth *synth, uint8_t ch, uint8_t cc, uint8_t value)
+static bool load_soundfont(Synth *synth, const char *path)
 {
-	Channel *c = &synth->channels[ch];
-	switch (cc) {
-	case 7:  c->volume = (float)value / 127.0f; break;
-	case 10: set_pan(c, value); break;
-	case 11: c->expression = (float)value / 127.0f; break;
-	case 64:
-		c->sustain = value >= 64;
-		if (!c->sustain) {
-			for (int i = 0; i < SYNTH_VOICES; i++) {
-				Voice *v = &synth->voices[i];
-				if (v->active && v->held && v->channel == ch)
-					release_voice(v);
-			}
-		}
-		break;
-	case 120:	/* all sound off */
-	case 123:	/* all notes off */
-		for (int i = 0; i < SYNTH_VOICES; i++) {
-			Voice *v = &synth->voices[i];
-			if (v->active && v->channel == ch)
-				release_voice(v);
-		}
-		break;
-	case 121:	/* reset all controllers */
-		{
-			uint8_t program = c->program;
-			reset_channel(c);
-			c->program = program;
-		}
-		break;
-	default:
-		break;
+	if (access(path, R_OK) == 0 && fluid_is_soundfont(path) && fluid_synth_sfload(synth->fluid, path, 1) != FLUID_FAILED) {
+		printf("Music: SoundFont %s\n", path);
+		return true;
 	}
+	return false;
+}
+
+/* The configured file, else FluidSynth's compiled-in default, else the first one found. */
+static bool load_any_soundfont(Synth *synth, const char *soundfont)
+{
+	if (soundfont && soundfont[0]) {
+		if (load_soundfont(synth, soundfont))
+			return true;
+		fprintf(stderr, "Cannot load SoundFont %s\n", soundfont);
+		return false;
+	}
+
+	char path[512];
+	if (find_in_dir(SOUNDFONT_DIRS[0], path, sizeof(path)) && load_soundfont(synth, path))
+		return true;
+
+	char *def = nullptr;
+	if (fluid_settings_dupstr(synth->settings, "synth.default-soundfont", &def) == FLUID_OK && def) {
+		bool ok = load_soundfont(synth, def);
+		fluid_free(def);
+		if (ok)
+			return true;
+	}
+
+	for (size_t i = 1; i < sizeof(SOUNDFONT_DIRS) / sizeof(SOUNDFONT_DIRS[0]); i++) {
+		if (find_in_dir(SOUNDFONT_DIRS[i], path, sizeof(path)) && load_soundfont(synth, path))
+			return true;
+	}
+	fprintf(stderr, "No General MIDI SoundFont (.sf2) found: set soundfont in raycaster.cfg "
+		"or install one (e.g. soundfont-fluid)\n");
+	return false;
+}
+
+bool synth_init(Synth *synth, int sampleRate, const char *soundfont)
+{
+	memset(synth, 0, sizeof(*synth));
+
+	/* Keep FluidSynth's info/debug chatter off the console; warnings and errors stay. */
+	fluid_set_log_function(FLUID_INFO, nullptr, nullptr);
+	fluid_set_log_function(FLUID_DBG, nullptr, nullptr);
+
+	/*
+	 * new_fluid_settings() initialises every registered audio driver, which
+	 * makes ALSA/SDL probe the sound cards and print noise. We never open a
+	 * FluidSynth driver (OpenAL plays the samples), so register only the
+	 * harmless "file" writer. Must happen before the first settings object.
+	 */
+	static const char *NO_DRIVERS[] = { "file", nullptr };
+	fluid_audio_driver_register(NO_DRIVERS);
+
+	synth->settings = new_fluid_settings();
+	if (!synth->settings)
+		return false;
+	fluid_settings_setnum(synth->settings, "synth.sample-rate", (double)sampleRate);
+	fluid_settings_setnum(synth->settings, "synth.gain", SYNTH_GAIN);
+	fluid_settings_setint(synth->settings, "synth.polyphony", SYNTH_POLYPHONY);
+	fluid_settings_setint(synth->settings, "synth.threadsafe-api", 0);	/* one thread drives it */
+
+	synth->fluid = new_fluid_synth(synth->settings);
+	if (!synth->fluid || !load_any_soundfont(synth, soundfont)) {
+		synth_shutdown(synth);
+		return false;
+	}
+	return true;
+}
+
+void synth_shutdown(Synth *synth)
+{
+	if (synth->fluid)
+		delete_fluid_synth(synth->fluid);
+	if (synth->settings)
+		delete_fluid_settings(synth->settings);
+	synth->fluid = nullptr;
+	synth->settings = nullptr;
 }
 
 void synth_message(Synth *synth, uint8_t status, uint8_t data1, uint8_t data2)
 {
-	uint8_t ch = status & 0x0F;
+	fluid_synth_t *fs = synth->fluid;
+	int ch = status & 0x0F;
 	switch (status & 0xF0) {
-	case 0x80:
-		note_off(synth, ch, data1);
-		break;
+	case 0x80: fluid_synth_noteoff(fs, ch, data1); break;
 	case 0x90:
 		if (data2 == 0)
-			note_off(synth, ch, data1);	/* note-on with velocity 0 is a note-off */
+			fluid_synth_noteoff(fs, ch, data1);	/* velocity 0 = note-off */
 		else
-			note_on(synth, ch, data1, data2);
+			fluid_synth_noteon(fs, ch, data1, data2);
 		break;
-	case 0xB0:
-		control_change(synth, ch, data1, data2);
-		break;
-	case 0xC0:
-		synth->channels[ch].program = data1 & 0x7F;
-		break;
-	case 0xE0:
-		{
-			int value = (data1 | (data2 << 7)) - 8192;	/* 14-bit, centre 8192 */
-			synth->channels[ch].bend = powf(2.0f, (float)value / 8192.0f * 2.0f / 12.0f);
-		}
-		break;
-	default:
-		break;	/* aftertouch: ignored */
+	case 0xA0: fluid_synth_key_pressure(fs, ch, data1, data2); break;
+	case 0xB0: fluid_synth_cc(fs, ch, data1, data2); break;
+	case 0xC0: fluid_synth_program_change(fs, ch, data1); break;
+	case 0xD0: fluid_synth_channel_pressure(fs, ch, data1); break;
+	case 0xE0: fluid_synth_pitch_bend(fs, ch, data1 | (data2 << 7)); break;
 	}
 }
 
 void synth_all_notes_off(Synth *synth)
 {
-	for (int i = 0; i < SYNTH_VOICES; i++) {
-		if (synth->voices[i].active)
-			release_voice(&synth->voices[i]);
-	}
-	for (int i = 0; i < SYNTH_CHANNELS; i++)
-		synth->channels[i].sustain = false;
-}
-
-/* ------------------------------------------------------------------------- */
-/* Rendering                                                                 */
-/* ------------------------------------------------------------------------- */
-
-static inline float white(Synth *synth)
-{
-	uint32_t s = synth->noise;
-	s ^= s << 13;
-	s ^= s >> 17;
-	s ^= s << 5;
-	synth->noise = s;
-	return (float)(s & 0xFFFF) / 32767.5f - 1.0f;
-}
-
-/* Advance the envelope one sample and return the level. Deactivates finished voices. */
-static float step_envelope(Voice *v)
-{
-	const Patch *p = v->patch;
-	switch (v->stage) {
-	case STAGE_ATTACK:
-		v->env += v->attackStep;
-		if (v->env >= 1.0f) {
-			v->env = 1.0f;
-			v->stage = STAGE_DECAY;
-		}
-		break;
-	case STAGE_DECAY:
-		v->env = p->sustain + (v->env - p->sustain) * v->decayMul;
-		if (p->sustain <= 0.0f && v->env < 0.001f)
-			v->active = false;
-		break;
-	case STAGE_RELEASE:
-		v->env *= v->releaseMul;
-		if (v->env < 0.001f)
-			v->active = false;
-		break;
-	default:
-		break;
-	}
-	return v->env;
+	fluid_synth_all_notes_off(synth->fluid, -1);
 }
 
 void synth_render(Synth *synth, int16_t *out, int frames)
 {
-	const float dt = 1.0f / (float)synth->sampleRate;
-	const float MASTER = 0.5f;
-
-	for (int f = 0; f < frames; f++) {
-		float left = 0.0f, right = 0.0f;
-
-		for (int i = 0; i < SYNTH_VOICES; i++) {
-			Voice *v = &synth->voices[i];
-			if (!v->active)
-				continue;
-			const Patch *p = v->patch;
-			const Channel *c = &synth->channels[v->channel];
-
-			float env = step_envelope(v);
-			if (!v->active)
-				continue;
-
-			float hz = v->baseHz * c->bend * (1.0f + v->sweep);
-			v->sweep *= v->sweepMul;
-
-			float index = p->modIndex * (p->modSustain + (1.0f - p->modSustain) * v->modFade);
-			v->modFade *= v->modMul;
-
-			float mod = sine(v->modPhase);
-			float s = sine(v->carPhase + index * mod * 0.159154943f);	/* index in radians -> turns */
-			if (p->noise > 0.0f) {
-				v->noiseLp += p->noiseTone * (white(synth) - v->noiseLp);
-				s = s * (1.0f - p->noise) + v->noiseLp * p->noise;
-			}
-
-			v->carPhase += hz * dt;
-			v->modPhase += hz * p->modRatio * dt;
-			v->carPhase -= floorf(v->carPhase);
-			v->modPhase -= floorf(v->modPhase);
-
-			float amp = s * env * v->gain * p->gain * c->volume * c->expression;
-			left += amp * c->panL;
-			right += amp * c->panR;
-		}
-
-		/* Soft clip so a busy chord bends instead of wrapping. */
-		left = tanhf(left * MASTER);
-		right = tanhf(right * MASTER);
-		out[f * 2 + 0] = (int16_t)lrintf(left * 32000.0f);
-		out[f * 2 + 1] = (int16_t)lrintf(right * 32000.0f);
-	}
+	/* Interleaved: left at out[0], right at out[1], stride 2. */
+	fluid_synth_write_s16(synth->fluid, frames, out, 0, 2, out, 1, 2);
 }

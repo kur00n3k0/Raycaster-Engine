@@ -37,7 +37,8 @@ struct MusicPlayer {
 	int next;		/* next event to send */
 };
 
-bool music_open(MusicPlayer *player, const char *path, int sampleRate);
+/* soundfont: .sf2 path, or null / "" to search for one (see synth_init). */
+bool music_open(MusicPlayer *player, const char *path, int sampleRate, const char *soundfont);
 void music_close(MusicPlayer *player);
 
 /* Render `frames` stereo frames, sending events at their exact sample. */

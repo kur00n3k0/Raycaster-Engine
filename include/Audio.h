@@ -7,8 +7,8 @@
 
 /*
  * OpenAL sound: one buffer per effect and a fixed pool of sources for
- * effects (digitized WAV, like Doom). Music is a MIDI file rendered by our
- * own synth (Midi.h) and streamed through a queue of small buffers on one
+ * effects (digitized WAV, like Doom). Music is a MIDI file parsed by our
+ * own loader and rendered by FluidSynth (Midi.h, Synth.h) and streamed through a queue of small buffers on one
  * non-positional source. World positions map to OpenAL as
  * (x, 0, y): the map lies in the x-z plane with +y up, so the listener's
  * "right" matches the camera's right (see audio_set_listener).
@@ -75,8 +75,12 @@ void audio_shutdown(Audio *audio);
 void audio_set_listener(Audio *audio, glm::vec2 pos, float angle);
 void audio_play_at(Audio *audio, int sfx, glm::vec2 pos);
 
-/* Loop a .mid file as background music (non-positional). */
-bool audio_play_music(Audio *audio, const char *path, float gain);
+/*
+ * Loop a .mid file as background music (non-positional), played by
+ * FluidSynth with `soundfont` (null or "" = search for one). False if the
+ * song or a SoundFont cannot be loaded; the game then runs without music.
+ */
+bool audio_play_music(Audio *audio, const char *path, const char *soundfont, float gain);
 
 /* Call once per frame: refills the music stream. */
 void audio_update(Audio *audio);

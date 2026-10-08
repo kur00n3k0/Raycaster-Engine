@@ -273,17 +273,21 @@ void midi_free(Song *song)
 /* Player                                                                    */
 /* ------------------------------------------------------------------------- */
 
-bool music_open(MusicPlayer *player, const char *path, int sampleRate)
+bool music_open(MusicPlayer *player, const char *path, int sampleRate, const char *soundfont)
 {
 	memset(player, 0, sizeof(*player));
 	if (!midi_load(&player->song, path, sampleRate))
 		return false;
-	synth_init(&player->synth, sampleRate);
+	if (!synth_init(&player->synth, sampleRate, soundfont)) {
+		midi_free(&player->song);
+		return false;
+	}
 	return true;
 }
 
 void music_close(MusicPlayer *player)
 {
+	synth_shutdown(&player->synth);
 	midi_free(&player->song);
 }
 

@@ -96,6 +96,7 @@ void config_defaults(Config *c)
 	c->sfxVolume = 1.0f;
 	c->musicVolume = 1.0f;
 	c->music = true;
+	c->soundfont[0] = '\0';
 
 	static const int DEFAULT_KEYS[ACT_COUNT][KEYS_PER_ACTION] = {
 		{ GLFW_KEY_W, GLFW_KEY_UP },
@@ -164,6 +165,15 @@ static bool parse_keys(char *v, int out[KEYS_PER_ACTION])
 	return true;
 }
 
+/* Any text that fits; empty is allowed. Paths can't contain '#' (it starts a comment). */
+static bool parse_string(const char *v, char *out, size_t size)
+{
+	if (strlen(v) >= size)
+		return false;
+	strcpy(out, v);
+	return true;
+}
+
 static char *trim(char *s)
 {
 	while (isspace((unsigned char)*s))
@@ -186,6 +196,7 @@ static bool apply(Config *c, const char *name, char *value)
 	if (!strcmp(name, "sfx_volume"))	return parse_float(value, 0.0f, 1.0f, &c->sfxVolume);
 	if (!strcmp(name, "music_volume"))	return parse_float(value, 0.0f, 1.0f, &c->musicVolume);
 	if (!strcmp(name, "music"))		return parse_bool(value, &c->music);
+	if (!strcmp(name, "soundfont"))	return parse_string(value, c->soundfont, sizeof(c->soundfont));
 	for (int a = 0; a < ACT_COUNT; a++) {
 		if (!strcmp(name, ACTION_NAMES[a]))
 			return parse_keys(value, c->keys[a]);
@@ -199,7 +210,7 @@ bool config_load(Config *config, const char *path)
 	if (!f)
 		return false;
 
-	char line[256];
+	char line[512];
 	int lineNo = 0;
 	while (fgets(line, sizeof(line), f)) {
 		lineNo++;
@@ -236,7 +247,7 @@ bool config_save(const Config *c, const char *path)
 		"# Delete this file to get the defaults back.\n\n");
 
 	/* "name = value" padded so the comments line up. */
-	char line[64];
+	char line[300];
 	snprintf(line, sizeof(line), "scale = %d", c->scale);
 	fprintf(f, "%-24s# framebuffer 320x200 (1) or 640x400 (2)\n", line);
 	snprintf(line, sizeof(line), "window_width = %d", c->windowWidth);
@@ -254,7 +265,9 @@ bool config_save(const Config *c, const char *path)
 	snprintf(line, sizeof(line), "music_volume = %g", (double)c->musicVolume);
 	fprintf(f, "%-24s# 0 - 1\n", line);
 	snprintf(line, sizeof(line), "music = %s", c->music ? "yes" : "no");
-	fprintf(f, "%-24s# MIDI music on or off\n\n", line);
+	fprintf(f, "%-24s# MIDI music on or off\n", line);
+	snprintf(line, sizeof(line), "soundfont = %s", c->soundfont);
+	fprintf(f, "%-24s# General MIDI .sf2 for the music; empty = search the usual places\n\n", line);
 
 	fprintf(f,
 		"# Keys: up to two per action. Names: A-Z, 0-9, F1-F12, KP0-KP9, SPACE, COMMA, PERIOD,\n"

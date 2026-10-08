@@ -34,6 +34,7 @@ struct Config {
 	float sfxVolume;	/* 0..1 */
 	float musicVolume;	/* 0..1 */
 	bool music;
+	char soundfont[256];	/* .sf2 for the music, "" = search the usual places */
 	int keys[ACT_COUNT][KEYS_PER_ACTION];	/* GLFW key codes or KEY_NONE */
 };
 

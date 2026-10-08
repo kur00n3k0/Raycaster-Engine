@@ -25,8 +25,9 @@ STACK
   GLEW ............. OpenGL function loader
   OpenAL ........... sound output
   GLM .............. vector math
+  FluidSynth ....... MIDI synthesizer for the music (SoundFont based)
 
-No other libraries. Image and sound loaders are written by hand.
+No other libraries. Image, sound and MIDI file loaders are written by hand.
 
 
 GAMEPLAY
@@ -53,11 +54,16 @@ Sound effects are short WAV files played as 3D sources: a door to your
 right is heard on the right, and far away sounds fade out.
 
 Music is MIDI, like Doom. The engine reads standard .mid files itself and
-plays them through its own built-in FM synthesizer, in the spirit of the
-AdLib sound cards of the time. There is no sound font: instruments are
-picked by General MIDI program family, and channel 10 is a drum kit.
-Drop any format 0 or 1 MIDI file in as assets/music/e1m1.mid to change
-the music.
+sends the notes to FluidSynth, which plays them with a General MIDI
+SoundFont (.sf2), the way a Sound Canvas or a wavetable card would have.
+The rendered audio is streamed to OpenAL. Drop any format 0 or 1 MIDI
+file in as assets/music/e1m1.mid to change the music.
+
+The SoundFont is not included. Set one with "soundfont =" in
+raycaster.cfg, or leave it empty and the game uses the first .sf2 it
+finds in assets/music, then FluidSynth's default SoundFont, then
+/usr/share/soundfonts and /usr/share/sounds/sf2. Without one the game
+runs without music.
 
 If no audio device is found, the game runs without sound.
 
@@ -68,7 +74,7 @@ REQUIREMENTS
   A GPU with OpenGL 3.3 support
 
   On Arch Linux:
-    pacman -S clang cmake nasm glfw glew openal glm
+    pacman -S clang cmake nasm glfw glew openal glm fluidsynth soundfont-fluid
 
 
 BUILDING
@@ -105,8 +111,8 @@ RUNNING
   The sound effects and the music are generated too:
     ./build/gen_sounds
 
-  To hear a MIDI file through the engine's synthesizer without the game:
-    ./build/render_midi assets/music/e1m1.mid out.wav
+  To hear a MIDI file through the game's music path without the game:
+    ./build/render_midi assets/music/e1m1.mid out.wav [seconds [soundfont.sf2]]
 
 
 CONTROLS
@@ -140,6 +146,7 @@ is plain text, one "name = value" per line:
   sfx_volume = 1          0 - 1
   music_volume = 1        0 - 1
   music = yes
+  soundfont =             .sf2 for the music; empty = search for one
   key_forward = W UP      up to two keys per action
 
 Mistakes are reported with their line number and that setting keeps its

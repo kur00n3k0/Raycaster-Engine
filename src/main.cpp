@@ -167,9 +167,10 @@ int main(int argc, char **argv)
 	}
 
 	static Audio audio;
-	if (!audio_init(&audio, config.sfxVolume)
-		|| (config.music && !audio_play_music(&audio, MUSIC, MUSIC_GAIN * config.musicVolume)))
+	if (!audio_init(&audio, config.sfxVolume))
 		return 1;
+	if (config.music && !audio_play_music(&audio, MUSIC, config.soundfont, MUSIC_GAIN * config.musicVolume))
+		fprintf(stderr, "Music disabled\n");
 
 	static Game game;
 	if (!game_init(&game, mapPath))
