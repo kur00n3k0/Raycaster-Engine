@@ -69,6 +69,15 @@ enum ThingType : uint8_t {
 
 enum { MAP_MAX_THINGS = 256 };
 
+/*
+ * Per-map settings come before the grid as "@name value" lines ('@' is not a
+ * map character). @music picks the song: a .mid file name in MAP_MUSIC_DIR, or
+ * "none". Without it the map gets MAP_MUSIC_DEFAULT.
+ */
+enum { MAP_MUSIC_MAX = 64 };
+#define MAP_MUSIC_DIR "assets/music/"
+#define MAP_MUSIC_DEFAULT "e1m1.mid"
+
 struct Thing {
 	uint8_t type;		/* ThingType */
 	glm::vec2 pos;		/* centre of its cell */
@@ -90,7 +99,12 @@ struct Map {
 
 	glm::vec2 playerStart;	/* centre of the 'P' cell */
 	float playerAngle;	/* radians, 0 = east, grows clockwise (towards +y) */
+
+	char music[MAP_MUSIC_MAX];	/* file in MAP_MUSIC_DIR, "" = no music */
 };
+
+/* A valid @music value: "none" or a plain .mid file name (no directories). */
+bool map_music_name_ok(const char *name);
 
 /* Returns false and prints why on a malformed map. */
 bool map_load(Map *map, const char *path);

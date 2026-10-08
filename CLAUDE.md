@@ -101,10 +101,10 @@ src/
 shaders/  present.vert, present.frag
 assets/   maps/*.txt, textures/*.pcx, sprites/*.pcx, sounds/*.wav (SFX), music/*.mid, palette.pal
 tests/    asm_equivalence.cpp
-tools/    gen_textures.cpp (placeholder textures + sprites), gen_sounds.cpp (SFX .wav + music .mid),
+tools/    gen_textures.cpp (placeholder textures + sprites), gen_sounds.cpp (SFX .wav + songs, `SONGS[]`),
           bench_routines.cpp (ASM vs C++ timing),
           render_midi.cpp (render a .mid through FluidSynth to .wav for offline checks)
-editor/   map_editor: MapDoc.cpp (char grid, load/save, undo, validation), Editor.cpp (ImGui UI)
+editor/   map_editor: MapDoc.cpp (char grid + @settings, load/save, undo, validation), Editor.cpp (ImGui UI)
 lib/      vendored deps: imgui/ (Dear ImGui v1.92.9b-docking + GLFW/OpenGL3 backends, see VERSION.txt)
 ```
 
@@ -284,4 +284,13 @@ and prove equivalence with a test before switching it on.
   dock layout via `DockBuilder` when `map_editor.ini` has none. The editor uses the mouse; the
   keyboard-only rule is for the game. Verify by screenshots with xdotool as for the game
   (window name ends in "Raycaster Map Editor"); don't `pkill -f` a pattern that matches your own shell.
+- Per-map music (user request): `@name value` lines before the grid are map settings
+  (`apply_setting` in Map.cpp; unknown name or a setting after the grid = load error).
+  `@music <file.mid>|none` -> `Map::music` ("" = silence), default `MAP_MUSIC_DEFAULT`
+  (e1m1.mid) when absent. main starts the song after `game_init`; a missing file only
+  disables music. Map error messages use real file lines (`rowLine`), not grid rows.
+  `MapDoc::music` keeps the raw value ("" = no line written), is part of undo snapshots, and
+  `doc_validate` checks it (bad name = error, missing file = warning). The editor previews
+  through the game's own Audio/Midi/Synth code, using `raycaster.cfg`'s SoundFont and volume.
+  New settings: add to `apply_setting`, `doc_load`/`doc_save`, `DocState` and the README.
 - See `README.txt` for the user-facing description.

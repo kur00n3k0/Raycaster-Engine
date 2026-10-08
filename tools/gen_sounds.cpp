@@ -4,8 +4,9 @@
  *     ./build/gen_sounds
  *
  *   assets/sounds/ (.wav) effects, synthesised here as 22050 Hz mono 16-bit PCM
- *   assets/music/e1m1.mid  music, written as a Standard MIDI File (format 1)
- *                          that the engine's own synth plays
+ *   assets/music/ (.mid)   music, written as Standard MIDI Files (format 1):
+ *                          e1m1.mid (driving, A minor), e1m2.mid (slow, D minor).
+ *                          Maps pick one with @music.
  *
  * The output is checked in; rerun only to change it.
  */
@@ -306,25 +307,66 @@ static std::vector<uint8_t> encode_track(Track *t, uint32_t endTick)
 	return out;
 }
 
-static bool write_music(const char *path)
-{
-	const int BPM = 132;
-	const uint32_t END = BAR * BARS;
+/*
+ * One 8-bar loop: bars 1-4 arpeggiate the chords on the lead, bars 5-8 play
+ * the melody; bass on roots and octaves, a pad holding each chord, drums.
+ */
+struct SongDef {
+	const char *path;
+	int bpm;
+	int roots[BARS];		/* bass note per bar */
+	int chords[BARS][4];		/* lead arpeggio / pad notes per bar */
+	int melody[32];			/* eighths for bars 5-8, 0 = rest */
+	uint8_t leadProgram, bassProgram, padProgram;	/* General MIDI, 0-based */
+	bool halfTime;			/* snare on beat 3 only, sparser hats */
+};
 
-	/* Chord per bar: Am F G Em | Am F G E */
-	static const int roots[BARS] = { 45, 41, 43, 40, 45, 41, 43, 40 };
-	static const int chords[BARS][4] = {
-		{ 69, 72, 76, 81 }, { 65, 69, 72, 77 }, { 67, 71, 74, 79 }, { 64, 67, 71, 76 },
-		{ 69, 72, 76, 81 }, { 65, 69, 72, 77 }, { 67, 71, 74, 79 }, { 64, 68, 71, 76 },
-	};
+static const SongDef SONGS[] = {
+	{
+		"assets/music/e1m1.mid", 132,
+		/* Chord per bar: Am F G Em | Am F G E */
+		{ 45, 41, 43, 40, 45, 41, 43, 40 },
+		{
+			{ 69, 72, 76, 81 }, { 65, 69, 72, 77 }, { 67, 71, 74, 79 }, { 64, 67, 71, 76 },
+			{ 69, 72, 76, 81 }, { 65, 69, 72, 77 }, { 67, 71, 74, 79 }, { 64, 68, 71, 76 },
+		},
+		{
+			76, 0, 76, 74, 72, 0, 69, 72,
+			77, 0, 76, 74, 72, 0, 69, 0,
+			74, 0, 74, 76, 79, 0, 77, 76,
+			76, 0, 74, 0, 71, 0, 68, 0,
+		},
+		80, 38, 89,	/* Lead 1 (square), Synth Bass 1, Pad 2 (warm) */
+		false,
+	},
+	{
+		"assets/music/e1m2.mid", 96,
+		/* Chord per bar: Dm Bb C A | Dm Gm Bb A */
+		{ 38, 34, 36, 33, 38, 43, 34, 33 },
+		{
+			{ 62, 65, 69, 74 }, { 58, 62, 65, 70 }, { 60, 64, 67, 72 }, { 57, 61, 64, 69 },
+			{ 62, 65, 69, 74 }, { 55, 58, 62, 67 }, { 58, 62, 65, 70 }, { 57, 61, 64, 69 },
+		},
+		{
+			74, 0, 0, 72, 69, 0, 65, 0,
+			67, 0, 0, 65, 62, 0, 0, 0,
+			65, 0, 67, 69, 70, 0, 69, 67,
+			69, 0, 0, 0, 61, 0, 64, 0,
+		},
+		11, 33, 91,	/* Vibraphone, Electric Bass (finger), Pad 4 (choir) */
+		true,
+	},
+};
+
+static bool write_music(const SongDef *song)
+{
+	const char *path = song->path;
+	const int BPM = song->bpm;
+	const uint32_t END = BAR * BARS;
+	const int *roots = song->roots;
+	const int (*chords)[4] = song->chords;
+	const int *melody = song->melody;
 	static const int arp[8] = { 0, 1, 2, 3, 2, 1, 0, 2 };
-	/* Bars 5-8 get a melody instead of the arpeggio (0 = rest). */
-	static const int melody[32] = {
-		76, 0, 76, 74, 72, 0, 69, 72,
-		77, 0, 76, 74, 72, 0, 69, 0,
-		74, 0, 74, 76, 79, 0, 77, 76,
-		76, 0, 74, 0, 71, 0, 68, 0,
-	};
 
 	Track tempo, lead, bass, pad, drums;
 
@@ -333,13 +375,13 @@ static bool write_music(const char *path)
 	tempo.add(0, { 0xFF, 0x58, 0x04, 4, 2, 24, 8 });	/* 4/4 */
 
 	/* Channel setup: program, volume (CC7), pan (CC10). */
-	lead.add(0, { 0xC0, 80 });		/* Lead 1 (square) */
+	lead.add(0, { 0xC0, song->leadProgram });
 	lead.add(0, { 0xB0, 7, 100 });
 	lead.add(0, { 0xB0, 10, 76 });
-	bass.add(0, { 0xC1, 38 });		/* Synth Bass 1 */
+	bass.add(0, { 0xC1, song->bassProgram });
 	bass.add(0, { 0xB1, 7, 110 });
 	bass.add(0, { 0xB1, 10, 56 });
-	pad.add(0, { 0xC2, 89 });		/* Pad 2 (warm) */
+	pad.add(0, { 0xC2, song->padProgram });
 	pad.add(0, { 0xB2, 7, 70 });
 	pad.add(0, { 0xB2, 10, 64 });
 
@@ -360,11 +402,20 @@ static bool write_music(const char *path)
 				pad.note(tick, BAR - 8, 2, (uint8_t)(chords[bar][i] - 12), 70);
 		}
 
-		if (beat8 == 0 || beat8 == 4)
-			drums.note(tick, EIGHTH / 2, 9, 36, 115);	/* kick */
-		if (beat8 == 2 || beat8 == 6)
-			drums.note(tick, EIGHTH / 2, 9, 38, 100);	/* snare */
-		drums.note(tick, EIGHTH / 2, 9, 42, beat8 % 2 ? 90 : 60);	/* closed hat */
+		if (song->halfTime) {
+			if (beat8 == 0 || beat8 == 5)
+				drums.note(tick, EIGHTH / 2, 9, 36, 110);	/* kick */
+			if (beat8 == 4)
+				drums.note(tick, EIGHTH / 2, 9, 38, 95);	/* snare */
+			if (beat8 % 2 == 0)
+				drums.note(tick, EIGHTH / 2, 9, 42, 55);	/* closed hat */
+		} else {
+			if (beat8 == 0 || beat8 == 4)
+				drums.note(tick, EIGHTH / 2, 9, 36, 115);	/* kick */
+			if (beat8 == 2 || beat8 == 6)
+				drums.note(tick, EIGHTH / 2, 9, 38, 100);	/* snare */
+			drums.note(tick, EIGHTH / 2, 9, 42, beat8 % 2 ? 90 : 60);	/* closed hat */
+		}
 		if (step == 0 || step == 32)
 			drums.note(tick, EIGHTH, 9, 49, 90);		/* crash */
 	}
@@ -467,5 +518,9 @@ int main()
 			return 1;
 		printf("wrote %s (%.2f s)\n", e.path, (double)b.count / RATE);
 	}
-	return write_music("assets/music/e1m1.mid") ? 0 : 1;
+	for (const SongDef &song : SONGS) {
+		if (!write_music(&song))
+			return 1;
+	}
+	return 0;
 }

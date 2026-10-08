@@ -17,7 +17,6 @@
 #include <time.h>
 
 static const char *START_MAP = "assets/maps/e1m1.txt";
-static const char *MUSIC = "assets/music/e1m1.mid";
 static const char *DEFAULT_CONFIG = "raycaster.cfg";
 static const float MUSIC_GAIN = 0.35f;
 static const double MAX_FRAME_TIME = 0.25;	/* don't spiral after a hitch */
@@ -169,12 +168,20 @@ int main(int argc, char **argv)
 	static Audio audio;
 	if (!audio_init(&audio, config.sfxVolume))
 		return 1;
-	if (config.music && !audio_play_music(&audio, MUSIC, config.soundfont, MUSIC_GAIN * config.musicVolume))
-		fprintf(stderr, "Music disabled\n");
 
 	static Game game;
 	if (!game_init(&game, mapPath))
 		return 1;
+
+	/* Each map picks its song (@music in the map file). */
+	if (config.music && game.map.music[0]) {
+		char musicPath[256];
+		snprintf(musicPath, sizeof(musicPath), "%s%s", MAP_MUSIC_DIR, game.map.music);
+		if (audio_play_music(&audio, musicPath, config.soundfont, MUSIC_GAIN * config.musicVolume))
+			printf("Music: %s\n", musicPath);
+		else
+			fprintf(stderr, "Music disabled\n");
+	}
 	if (warp) {
 		game.player.pos = glm::vec2(warpX, warpY);
 		game.player.angle = warpDeg * 3.14159265f / 180.0f;

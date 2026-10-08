@@ -7,11 +7,15 @@
  *     ./build/map_editor [assets/maps/e1m1.txt]
  *
  * Run it from the repo root: it loads the game's textures and sprites from
- * assets/ for the palette and the map view. The game itself never links ImGui.
+ * assets/ for the palette and the map view, and previews each map's music
+ * (@music) through the game's audio code with the SoundFont from raycaster.cfg. The game itself never links ImGui.
  */
 
 #include "MapDoc.h"
 
+#include "Audio.h"
+#include "Config.h"
+#include "Map.h"
 #include "Palette.h"
 #include "Textures.h"
 
@@ -43,6 +47,8 @@
 extern char **environ;
 
 static const char *MAP_DIR = "assets/maps";
+static const char *CONFIG_FILE = "raycaster.cfg";	/* the game's: SoundFont and music volume */
+static const float PREVIEW_GAIN = 0.35f;		/* MUSIC_GAIN in main.cpp */
 static const char *INI_FILE = "map_editor.ini";
 static const float ZOOM_MIN = 4.0f;
 static const float ZOOM_MAX = 96.0f;
@@ -247,6 +253,11 @@ struct Editor {
 	bool quit;
 	bool resetLayout;
 
+	/* Music preview, through the game's own audio path */
+	Audio audio;
+	Config config;
+	bool previewing;
+
 	/* Play testing */
 	pid_t gamePid;
 	char gameExe[PATH_MAX];
@@ -262,6 +273,8 @@ static void set_status(Editor *ed, const char *fmt, ...)
 	vsnprintf(ed->status, sizeof(ed->status), fmt, ap);
 	va_end(ap);
 }
+
+static void stop_preview(Editor *ed);
 
 static void show_error(Editor *ed, const char *text)
 {
@@ -398,6 +411,7 @@ static void launch_game(Editor *ed)
 		return;
 	}
 	ed->gamePid = pid;
+	stop_preview(ed);	/* the game plays the map's music itself */
 	set_status(ed, "Testing %s in the game", doc_name(&ed->doc));
 }
 
@@ -844,6 +858,107 @@ static void draw_map_window(Editor *ed)
 }
 
 /* --------------------------------------------------------------------------
+ * Music
+ * ------------------------------------------------------------------------ */
+
+/* .mid files the game can play, for the Song combo. */
+static std::vector<std::string> list_music()
+{
+	std::vector<std::string> out;
+	DIR *d = opendir(MAP_MUSIC_DIR);
+	if (!d)
+		return out;
+	while (dirent *e = readdir(d)) {
+		if (map_music_name_ok(e->d_name) && strcmp(e->d_name, "none") != 0)
+			out.push_back(e->d_name);
+	}
+	closedir(d);
+	std::sort(out.begin(), out.end());
+	return out;
+}
+
+/* The file the game will play for this map, or null for silence. */
+static const char *map_song(const MapDoc *doc)
+{
+	if (!doc->music[0])
+		return MAP_MUSIC_DEFAULT;
+	return strcmp(doc->music, "none") == 0 ? nullptr : doc->music;
+}
+
+static void stop_preview(Editor *ed)
+{
+	audio_stop_music(&ed->audio);
+	ed->previewing = false;
+}
+
+static void start_preview(Editor *ed)
+{
+	stop_preview(ed);
+	const char *song = map_song(&ed->doc);
+	if (!song)
+		return;
+	if (!ed->audio.enabled) {
+		set_status(ed, "No audio device: cannot preview");
+		return;
+	}
+	char path[256];
+	snprintf(path, sizeof(path), "%s%s", MAP_MUSIC_DIR, song);
+	if (!audio_play_music(&ed->audio, path, ed->config.soundfont, PREVIEW_GAIN * ed->config.musicVolume)) {
+		set_status(ed, "Cannot play %s (see the terminal)", path);
+		return;
+	}
+	ed->previewing = true;
+	set_status(ed, "Playing %s", song);
+}
+
+static void draw_music_settings(Editor *ed)
+{
+	MapDoc *doc = &ed->doc;
+	char current[96];
+	if (!doc->music[0])
+		snprintf(current, sizeof(current), "Default (%s)", MAP_MUSIC_DEFAULT);
+	else if (strcmp(doc->music, "none") == 0)
+		snprintf(current, sizeof(current), "None (silence)");
+	else
+		snprintf(current, sizeof(current), "%s", doc->music);
+
+	const char *picked = nullptr;
+	ImGui::SetNextItemWidth(-FLT_MIN);
+	if (ImGui::BeginCombo("##song", current)) {
+		static std::vector<std::string> songs;
+		if (ImGui::IsWindowAppearing())
+			songs = list_music();
+		char label[96];
+		snprintf(label, sizeof(label), "Default (%s)", MAP_MUSIC_DEFAULT);
+		if (ImGui::Selectable(label, !doc->music[0]))
+			picked = "";
+		if (ImGui::Selectable("None (silence)", strcmp(doc->music, "none") == 0))
+			picked = "none";
+		ImGui::Separator();
+		for (const std::string &s : songs) {
+			if (ImGui::Selectable(s.c_str(), s == doc->music))
+				picked = s.c_str();
+		}
+		/* Change while `songs` is alive: picked may point into it. */
+		if (picked && strcmp(picked, doc->music) != 0) {
+			doc_begin_edit(doc);
+			doc_set_music(doc, picked);
+			doc_end_edit(doc);
+			if (ed->previewing)
+				start_preview(ed);
+		}
+		ImGui::EndCombo();
+	}
+
+	ImGui::BeginDisabled(!map_song(doc));
+	if (ImGui::Button(ed->previewing ? "Stop preview" : "Preview"))
+		ed->previewing ? stop_preview(ed) : start_preview(ed);
+	ImGui::EndDisabled();
+	ImGui::SameLine();
+	ImGui::TextDisabled("saved as @music in the map file");
+}
+
+/* --------------------------------------------------------------------------
  * Side windows
  * ------------------------------------------------------------------------ */
 
@@ -964,6 +1079,9 @@ static void draw_properties_window(Editor *ed)
 		doc_wall_border(doc);
 		doc_end_edit(doc);
 	}
+
+	ImGui::SeparatorText("Music");
+	draw_music_settings(ed);
 
 	ImGui::SeparatorText("Contents");
 	const DocStats *st = &ed->stats;
@@ -1440,6 +1558,11 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
+	config_defaults(&ed.config);
+	config_load(&ed.config, CONFIG_FILE);	/* missing is fine: defaults */
+	if (!audio_init(&ed.audio, ed.config.sfxVolume))
+		fprintf(stderr, "Audio disabled: music preview will not work\n");
+
 	doc_new(&ed.doc, 32, 32);
 	if (argc == 2)
 		do_open(&ed, argv[1]);
@@ -1453,6 +1576,13 @@ int main(int argc, char **argv)
 			request(&ed, PENDING_QUIT);
 		}
 		reap_game(&ed);
+		audio_update(&ed.audio);
+
+		/* Undo, redo or opening another map can change the song under a running preview. */
+		static char previewed[DOC_MUSIC_MAX];
+		if (ed.previewing && strcmp(previewed, ed.doc.music) != 0)
+			start_preview(&ed);
+		memcpy(previewed, ed.doc.music, sizeof(previewed));
 
 		if (ed.validatedRevision != ed.doc.revision) {
 			doc_validate(&ed.doc, &ed.problems, &ed.stats, &ed.reach);
@@ -1496,6 +1626,7 @@ int main(int argc, char **argv)
 		glfwSwapBuffers(window);
 	}
 
+	audio_shutdown(&ed.audio);
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();

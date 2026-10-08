@@ -58,8 +58,10 @@ right is heard on the right, and far away sounds fade out.
 Music is MIDI, like Doom. The engine reads standard .mid files itself and
 sends the notes to FluidSynth, which plays them with a General MIDI
 SoundFont (.sf2), the way a Sound Canvas or a wavetable card would have.
-The rendered audio is streamed to OpenAL. Drop any format 0 or 1 MIDI
-file in as assets/music/e1m1.mid to change the music.
+The rendered audio is streamed to OpenAL. Each map picks its own song
+with an @music line (see MAP FORMAT); any format 0 or 1 MIDI file dropped
+into assets/music/ can be used. Two songs come with the engine:
+e1m1.mid (fast, A minor, the default) and e1m2.mid (slow, D minor).
 
 The SoundFont is not included. Set one with "soundfont =" in
 raycaster.cfg, or leave it empty and the game uses the first .sf2 it
@@ -127,7 +129,7 @@ The window is split into dockable panels (drag a tab to move it; View >
 Reset window layout puts them back):
   Palette ...... tools and brushes, shown with the game's own textures
   Map .......... the grid you draw on
-  Properties ... file, size, what the map contains, view options, test
+  Properties ... file, size, music, what the map contains, view options, test
   Problems ..... everything the game would reject, live; click to jump
 
 Mouse:
@@ -157,6 +159,10 @@ Keys:
   Home                       fit the map in the view
   T / H                      textures / grid on or off
   Ctrl+Q                     quit (asks before losing changes)
+
+Music: pick the map's song in Properties (Default, None or any .mid in
+assets/music) and press Preview to hear it with the game's SoundFont. It is
+saved as the @music line. Undo covers it like any other change.
 
 Doors are drawn as a thin panel showing which way they face. Cells with
 problems get a red (error) or orange (warning) outline. "Shade unreachable
@@ -251,6 +257,14 @@ Maps are plain text files. Each character is one grid cell:
   Every row must be the same width. The game starts on
   assets/maps/e1m1.txt.
 
+  Settings go on lines starting with @, before the grid:
+
+    @music e1m2.mid     song from assets/music/, or "none" for silence;
+                        without the line the map plays e1m1.mid
+
+  An unknown setting, or one after the grid, is an error.
+
+  @music e1m2.mid
   ##########
   #P.......#
   #..##D##.#

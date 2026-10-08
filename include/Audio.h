@@ -82,6 +82,9 @@ void audio_play_at(Audio *audio, int sfx, glm::vec2 pos);
  */
 bool audio_play_music(Audio *audio, const char *path, const char *soundfont, float gain);
 
+/* Stop and free the current song, if any. */
+void audio_stop_music(Audio *audio);
+
 /* Call once per frame: refills the music stream. */
 void audio_update(Audio *audio);
 

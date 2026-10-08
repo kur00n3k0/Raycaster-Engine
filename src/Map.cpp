@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 enum { MAP_MAX_SIZE = 256 };
 
@@ -43,9 +44,43 @@ static int thing_from_char(char c)
 	}
 }
 
+bool map_music_name_ok(const char *name)
+{
+	size_t n = strlen(name);
+	if (strcmp(name, "none") == 0)
+		return true;
+	return n > 4 && n < MAP_MUSIC_MAX && !strchr(name, '/') && strcasecmp(name + n - 4, ".mid") == 0;
+}
+
+/* "@name value" line before the grid. False on an unknown name or bad value. */
+static bool apply_setting(Map *map, const char *path, int lineNo, char *line)
+{
+	char *name = line + 1;
+	char *value = name + strcspn(name, " \t");
+	if (*value)
+		*value++ = '\0';
+	value += strspn(value, " \t");
+	char *end = value + strlen(value);
+	while (end > value && (end[-1] == ' ' || end[-1] == '\t'))
+		*--end = '\0';
+
+	if (strcmp(name, "music") == 0) {
+		if (!map_music_name_ok(value)) {
+			fprintf(stderr, "%s:%d: @music needs a .mid file name in %s, or none\n",
+				path, lineNo, MAP_MUSIC_DIR);
+			return false;
+		}
+		snprintf(map->music, sizeof(map->music), "%s", strcmp(value, "none") == 0 ? "" : value);
+		return true;
+	}
+	fprintf(stderr, "%s:%d: unknown map setting '@%s'\n", path, lineNo, name);
+	return false;
+}
+
 bool map_load(Map *map, const char *path)
 {
 	memset(map, 0, sizeof(*map));
+	snprintf(map->music, sizeof(map->music), "%s", MAP_MUSIC_DEFAULT);
 
 	FILE *f = fopen(path, "rb");
 	if (!f) {
@@ -55,14 +90,29 @@ bool map_load(Map *map, const char *path)
 
 	/* First pass: read lines into a fixed scratch grid. */
 	static char grid[MAP_MAX_SIZE][MAP_MAX_SIZE + 2];
+	static int rowLine[MAP_MAX_SIZE];	/* file line of each row, for messages */
 	int rows = 0;
 	int cols = 0;
 	char line[MAP_MAX_SIZE + 2];
+	int lineNo = 0;
 	while (fgets(line, sizeof(line), f)) {
+		lineNo++;
 		size_t len = strcspn(line, "\r\n");
 		line[len] = '\0';
 		if (len == 0)
 			continue;
+		if (line[0] == '@') {
+			if (rows > 0) {
+				fprintf(stderr, "%s:%d: map settings must come before the grid\n", path, lineNo);
+				fclose(f);
+				return false;
+			}
+			if (!apply_setting(map, path, lineNo, line)) {
+				fclose(f);
+				return false;
+			}
+			continue;
+		}
 		if (rows == MAP_MAX_SIZE || len > MAP_MAX_SIZE) {
 			fprintf(stderr, "%s: map larger than %dx%d\n", path, MAP_MAX_SIZE, MAP_MAX_SIZE);
 			fclose(f);
@@ -71,11 +121,12 @@ bool map_load(Map *map, const char *path)
 		if (rows == 0) {
 			cols = (int)len;
 		} else if ((int)len != cols) {
-			fprintf(stderr, "%s:%d: row is %d wide, expected %d\n", path, rows + 1, (int)len, cols);
+			fprintf(stderr, "%s:%d: row is %d wide, expected %d\n", path, lineNo, (int)len, cols);
 			fclose(f);
 			return false;
 		}
 		memcpy(grid[rows], line, len + 1);
+		rowLine[rows] = lineNo;
 		rows++;
 	}
 	fclose(f);
@@ -97,19 +148,19 @@ bool map_load(Map *map, const char *path)
 			char c = grid[y][x];
 			uint8_t tile;
 			if (!tile_from_char(c, &tile)) {
-				fprintf(stderr, "%s:%d:%d: unknown map character '%c'\n", path, y + 1, x + 1, c);
+				fprintf(stderr, "%s:%d:%d: unknown map character '%c'\n", path, rowLine[y], x + 1, c);
 				map_free(map);
 				return false;
 			}
 			bool border = x == 0 || y == 0 || x == cols - 1 || y == rows - 1;
 			if (border && (tile == TILE_EMPTY || tile == TILE_DOOR || tile == TILE_SECRET)) {
-				fprintf(stderr, "%s:%d:%d: map border must be solid wall\n", path, y + 1, x + 1);
+				fprintf(stderr, "%s:%d:%d: map border must be solid wall\n", path, rowLine[y], x + 1);
 				map_free(map);
 				return false;
 			}
 			if (c == 'P') {
 				if (havePlayer) {
-					fprintf(stderr, "%s:%d:%d: more than one player start\n", path, y + 1, x + 1);
+					fprintf(stderr, "%s:%d:%d: more than one player start\n", path, rowLine[y], x + 1);
 					map_free(map);
 					return false;
 				}
@@ -143,7 +194,7 @@ bool map_load(Map *map, const char *path)
 				&& map->tiles[y * cols + x + 1] != TILE_EMPTY;
 			if (wallsNS == wallsEW) {
 				fprintf(stderr, "%s:%d:%d: door needs walls on exactly two opposite sides\n",
-					path, y + 1, x + 1);
+					path, rowLine[y], x + 1);
 				map_free(map);
 				return false;
 			}

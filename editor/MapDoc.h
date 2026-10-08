@@ -23,16 +23,24 @@ enum {
 	DOC_UNDO_LEVELS = 256
 };
 
+enum { DOC_MUSIC_MAX = 64 };	/* MAP_MUSIC_MAX */
+
 struct DocState {
 	int width;
 	int height;
 	std::vector<char> cells;	/* width * height, row-major */
+	char music[DOC_MUSIC_MAX];
 };
 
 struct MapDoc {
 	int width;
 	int height;
 	std::vector<char> cells;
+	/*
+	 * @music line: "" = none written (the game plays MAP_MUSIC_DEFAULT),
+	 * "none", or a .mid file name in assets/music/.
+	 */
+	char music[DOC_MUSIC_MAX];
 	char path[512];			/* "" = not saved yet */
 	bool dirty;
 	uint32_t revision;		/* bumped on every change, to know when to revalidate */
@@ -77,6 +85,9 @@ static inline char doc_get(const MapDoc *doc, int x, int y)
 {
 	return doc_inside(doc, x, y) ? doc->cells[y * doc->width + x] : '#';
 }
+
+/* Changes the @music setting ("" = default). */
+void doc_set_music(MapDoc *doc, const char *music);
 
 /* Sets one cell. 'P' moves the player start (there is only one). Outside cells are ignored. */
 void doc_set(MapDoc *doc, int x, int y, char c);

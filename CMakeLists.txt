@@ -113,10 +113,16 @@ add_executable(map_editor
 	editor/MapDoc.cpp
 	src/Palette.cpp
 	src/Textures.cpp
+	src/Map.cpp
+	src/Config.cpp
+	src/Audio.cpp
+	src/Midi.cpp
+	src/Synth.cpp
 )
 target_include_directories(map_editor PRIVATE include editor)
 target_compile_options(map_editor PRIVATE ${RC_WARNINGS})
-target_link_libraries(map_editor PRIVATE imgui GLEW::GLEW OpenGL::GL glm::glm)
+target_compile_definitions(map_editor PRIVATE $<$<CONFIG:Debug>:RC_DEBUG=1>)
+target_link_libraries(map_editor PRIVATE imgui GLEW::GLEW OpenGL::GL glm::glm OpenAL::OpenAL PkgConfig::FLUIDSYNTH)
 
 # ---------------------------------------------------------------------------
 # ASM vs C++ equivalence tests

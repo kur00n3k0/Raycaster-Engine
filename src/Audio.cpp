@@ -212,14 +212,7 @@ void audio_shutdown(Audio *audio)
 {
 	if (!audio->enabled)
 		return;
-	if (audio->music) {
-		alSourceStop(audio->musicSource);
-		alSourcei(audio->musicSource, AL_BUFFER, 0);	/* unqueue everything */
-		alDeleteSources(1, &audio->musicSource);
-		alDeleteBuffers(MUSIC_BUFFERS, audio->musicBuffers);
-		music_close(audio->music);
-		free(audio->music);
-	}
+	audio_stop_music(audio);
 	if (audio->sources[0]) {
 		for (int i = 0; i < AUDIO_SOURCES; i++)
 			alSourceStop(audio->sources[i]);
@@ -282,10 +275,24 @@ static void queue_music(Audio *audio, ALuint buffer)
 	AL_CHECK(alSourceQueueBuffers(audio->musicSource, 1, &buffer));
 }
 
+void audio_stop_music(Audio *audio)
+{
+	if (!audio->enabled || !audio->music)
+		return;
+	alSourceStop(audio->musicSource);
+	alSourcei(audio->musicSource, AL_BUFFER, 0);	/* unqueue everything */
+	alDeleteSources(1, &audio->musicSource);
+	alDeleteBuffers(MUSIC_BUFFERS, audio->musicBuffers);
+	music_close(audio->music);
+	free(audio->music);
+	audio->music = nullptr;
+}
+
 bool audio_play_music(Audio *audio, const char *path, const char *soundfont, float gain)
 {
 	if (!audio->enabled)
 		return true;
+	audio_stop_music(audio);	/* one song at a time */
 
 	audio->music = (MusicPlayer *)malloc(sizeof(MusicPlayer));
 	if (!audio->music || !music_open(audio->music, path, MUSIC_RATE, soundfont)) {

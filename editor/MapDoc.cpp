@@ -1,5 +1,7 @@
 #include "MapDoc.h"
 
+#include "Map.h"
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -34,6 +36,7 @@ void doc_new(MapDoc *doc, int width, int height)
 		}
 	}
 	doc->cells[1 * width + 1] = 'P';
+	doc->music[0] = '\0';
 	doc->path[0] = '\0';
 	doc->dirty = false;
 	doc->revision++;
@@ -54,10 +57,23 @@ bool doc_load(MapDoc *doc, const char *path, char *err, int errSize)
 	int width = 0;
 	char line[1024];
 	bool tooLong = false;
+	int dropped = 0;
+	doc->music[0] = '\0';
 	while (fgets(line, sizeof(line), f)) {
 		size_t len = strcspn(line, "\r\n");
+		line[len] = '\0';
 		if (len == 0)
 			continue;
+		if (line[0] == '@') {
+			/* Map settings. Only @music exists; anything else would stop the game loading the map. */
+			char name[32] = "", value[DOC_MUSIC_MAX + 32] = "";
+			if (rows.empty() && sscanf(line, "@%31s %95s", name, value) >= 1
+				&& strcmp(name, "music") == 0 && strlen(value) < DOC_MUSIC_MAX)
+				snprintf(doc->music, sizeof(doc->music), "%s", value);
+			else
+				dropped++;
+			continue;
+		}
 		if (len > DOC_MAX_SIZE || rows.size() == DOC_MAX_SIZE) {
 			tooLong = true;
 			break;
@@ -96,12 +112,12 @@ bool doc_load(MapDoc *doc, const char *path, char *err, int errSize)
 		}
 	}
 	snprintf(doc->path, sizeof(doc->path), "%s", path);
-	doc->dirty = padded > 0 || unknown > 0;
+	doc->dirty = padded > 0 || unknown > 0 || dropped > 0;
 	doc->revision++;
 	clear_history(doc);
-	if (padded || unknown)
+	if (padded || unknown || dropped)
 		snprintf(err, (size_t)errSize, "Repaired on load: %d short rows padded with wall, "
-			"%d unknown characters made floor", padded, unknown);
+			"%d unknown characters made floor, %d bad @ setting lines dropped", padded, unknown, dropped);
 	return true;
 }
 
@@ -110,6 +126,8 @@ bool doc_save(MapDoc *doc, const char *path)
 	FILE *f = fopen(path, "wb");
 	if (!f)
 		return false;
+	if (doc->music[0])
+		fprintf(f, "@music %s\n", doc->music);
 	for (int y = 0; y < doc->height; y++) {
 		fwrite(&doc->cells[(size_t)y * (size_t)doc->width], 1, (size_t)doc->width, f);
 		fputc('\n', f);
@@ -121,6 +139,14 @@ bool doc_save(MapDoc *doc, const char *path)
 		doc->dirty = false;
 	}
 	return ok;
+}
+
+void doc_set_music(MapDoc *doc, const char *music)
+{
+	if (strcmp(doc->music, music) == 0)
+		return;
+	snprintf(doc->music, sizeof(doc->music), "%s", music);
+	changed(doc);
 }
 
 void doc_set(MapDoc *doc, int x, int y, char c)
@@ -204,6 +230,7 @@ static DocState snapshot(const MapDoc *doc)
 	s.width = doc->width;
 	s.height = doc->height;
 	s.cells = doc->cells;
+	memcpy(s.music, doc->music, sizeof(s.music));
 	return s;
 }
 
@@ -212,6 +239,7 @@ static void restore(MapDoc *doc, DocState *s)
 	doc->width = s->width;
 	doc->height = s->height;
 	doc->cells.swap(s->cells);
+	memcpy(doc->music, s->music, sizeof(doc->music));
 	changed(doc);
 }
 
@@ -231,7 +259,8 @@ void doc_end_edit(MapDoc *doc)
 		return;
 	doc->editing = false;
 	const DocState &before = doc->undo.back();
-	if (before.width == doc->width && before.height == doc->height && before.cells == doc->cells) {
+	if (before.width == doc->width && before.height == doc->height && before.cells == doc->cells
+		&& strcmp(before.music, doc->music) == 0) {
 		doc->undo.pop_back();
 		return;
 	}
@@ -328,6 +357,20 @@ void doc_validate(const MapDoc *doc, std::vector<Problem> *problems, DocStats *s
 		add(problems, -1, -1, true, "%d doors, the game allows %d", stats->doors, DOC_MAX_DOORS);
 	if (things > DOC_MAX_THINGS)
 		add(problems, -1, -1, true, "%d things, the game allows %d", things, DOC_MAX_THINGS);
+
+	/* Music: a bad name stops the game; a missing file only means silence. */
+	if (doc->music[0] && !map_music_name_ok(doc->music)) {
+		add(problems, -1, -1, true, "@music must be a .mid file name or none");
+	} else {
+		const char *song = doc->music[0] ? doc->music : MAP_MUSIC_DEFAULT;
+		char path[128];
+		snprintf(path, sizeof(path), "%s%s", MAP_MUSIC_DIR, song);
+		FILE *f = strcmp(song, "none") == 0 ? nullptr : fopen(path, "rb");
+		if (f)
+			fclose(f);
+		else if (strcmp(song, "none") != 0)
+			add(problems, -1, -1, false, "Music %s not found: the map will be silent", path);
+	}
 
 	/* Reachability: flood from the start through everything that is not plain wall. */
 	reach->assign((size_t)w * (size_t)h, 0);
