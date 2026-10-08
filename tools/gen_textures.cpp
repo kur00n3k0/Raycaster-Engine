@@ -11,6 +11,7 @@
 
 #include "Palette.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -516,6 +517,56 @@ static void spr_barrel(Image img)
 	outline(img);
 }
 
+/*
+ * Ragged ball of fire centred at (cx, cy): white-hot core, yellow, orange,
+ * red rim. heat < 1 cools it down (frame 3: dull fire and gray smoke).
+ */
+static void fireball(Image img, int cx, int cy, int r, float heat, uint32_t seed)
+{
+	for (int y = cy - r - 3; y <= cy + r + 3; y++)
+		for (int x = cx - r - 3; x <= cx + r + 3; x++) {
+			if (x < 0 || x >= SIZE || y < 0 || y >= SIZE)
+				continue;
+			int dx = x - cx, dy = y - cy;
+			float d = sqrtf((float)(dx * dx + dy * dy)) + (float)noise(x / 2, y / 2, seed, 3);
+			float t = d / (float)r;		/* 0 centre, 1 edge */
+			if (t > 1.0f)
+				continue;
+			float hot = (1.0f - t) * heat + (float)noise(x, y, seed + 1, 1) * 0.08f;
+			uint8_t c;
+			if (hot > 0.75f)      c = col(3, 15);		/* white-yellow */
+			else if (hot > 0.5f)  c = col(3, 12);		/* yellow */
+			else if (hot > 0.3f)  c = col(2, 12);		/* orange */
+			else if (hot > 0.15f) c = col(1, 10);		/* red */
+			else                  c = col(0, 4 + noise(x, y, seed + 2, 2));	/* smoke */
+			img[y][x] = c;
+		}
+}
+
+/* Barrel bursting: the drum with fire breaking out of the lid. */
+static void spr_explode1(Image img)
+{
+	spr_barrel(img);
+	fireball(img, 32, 22, 11, 0.9f, 140);
+	fireball(img, 25, 30, 5, 0.8f, 141);
+	fireball(img, 40, 33, 5, 0.8f, 142);
+}
+
+/* The blast: a big fireball where the barrel stood. */
+static void spr_explode2(Image img)
+{
+	clear(img);
+	fireball(img, 32, 38, 25, 1.1f, 150);
+}
+
+/* Burning out: smaller, cooler, smoky. */
+static void spr_explode3(Image img)
+{
+	clear(img);
+	fireball(img, 32, 34, 22, 0.55f, 160);
+	fireball(img, 30, 48, 10, 0.8f, 161);
+}
+
 /* Lamp hanging from the ceiling on a chain. */
 static void spr_lamp(Image img)
 {
@@ -617,6 +668,9 @@ int main()
 		{ "assets/sprites/ammo.pcx", spr_ammo },
 		{ "assets/sprites/barrel.pcx", spr_barrel },
 		{ "assets/sprites/lamp.pcx", spr_lamp },
+		{ "assets/sprites/explode1.pcx", spr_explode1 },
+		{ "assets/sprites/explode2.pcx", spr_explode2 },
+		{ "assets/sprites/explode3.pcx", spr_explode3 },
 	};
 
 	for (const Entry &e : entries) {

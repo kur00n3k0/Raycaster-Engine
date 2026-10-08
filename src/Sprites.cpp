@@ -16,6 +16,7 @@ struct VisSprite {
 	float depth;		/* distance along the view direction */
 	float screenX;		/* column of the sprite centre */
 	const Texture *tex;
+	bool fullbright;	/* sprite_fullbright: no distance shading */
 };
 
 static int clamp_int(int v, int lo, int hi)
@@ -53,7 +54,7 @@ static void draw_sprite(const Raycaster *rc, Video *video, const RenderAssets *a
 	double texelsPerCol = (double)tex->width / (double)spriteW;
 
 	ColumnArgs args;
-	args.colormap = assets->colormaps->level[raycaster_light_level(s->depth)];
+	args.colormap = assets->colormaps->level[s->fullbright ? 0 : raycaster_light_level(s->depth)];
 	args.pitch = video->pitch;
 	args.count = y1 - y0;
 	args.frac = to_fixed(((double)y0 + 0.5 - (double)top) * texelsPerRow);
@@ -102,6 +103,7 @@ void sprites_render(const Raycaster *rc, Video *video, const RenderAssets *asset
 		v->depth = depth;
 		v->screenX = screenX;
 		v->tex = &assets->sprites->sprite[entities[i].sprite];
+		v->fullbright = sprite_fullbright(entities[i].sprite);
 	}
 
 	/* Painter's order, far to near. Insertion sort: few sprites, nearly sorted frame to frame. */

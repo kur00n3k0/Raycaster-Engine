@@ -258,6 +258,28 @@ static Buffer sfx_exit()
 	return b;
 }
 
+/*
+ * Barrel explosion: a deep thump sweeping down under a roar of noise whose
+ * low-pass closes as it dies away, with a few crackles in the tail.
+ */
+static Buffer sfx_explode()
+{
+	Buffer b = make_buffer(1.6f);
+	float lp = 0.0f, lp2 = 0.0f, phase = 0.0f;
+	for (int i = 0; i < b.count; i++) {
+		float t = (float)i / RATE;
+		float cutoff = 0.02f + 0.5f * expf(-t * 6.0f);
+		lp += cutoff * (white() - lp);
+		lp2 += cutoff * (lp - lp2);
+		phase += (35.0f + 90.0f * expf(-t * 12.0f)) / RATE;
+		float thump = sinf(2.0f * PI * phase) * expf(-t * 5.0f);
+		float roar = 3.0f * lp2 * (fminf(1.0f, t / 0.004f)) * expf(-t * 2.2f);
+		float crackle = (t > 0.25f && white() > 0.997f) ? 0.5f * expf(-(t - 0.25f) * 3.0f) : 0.0f;
+		b.s[i] = 1.1f * thump + roar + crackle;
+	}
+	return b;
+}
+
 /* ------------------------------------------------------------------------- */
 /* Music: an 8-bar minor-key loop as a Standard MIDI File                    */
 /* ------------------------------------------------------------------------- */
@@ -534,6 +556,7 @@ int main()
 		{ "assets/sounds/player_hurt.wav", sfx_player_hurt, 0.8f },
 		{ "assets/sounds/pickup.wav", sfx_pickup, 0.6f },
 		{ "assets/sounds/exit.wav", sfx_exit, 0.8f },
+		{ "assets/sounds/explode.wav", sfx_explode, 0.95f },
 	};
 	for (const Entry &e : entries) {
 		Buffer b = e.make();

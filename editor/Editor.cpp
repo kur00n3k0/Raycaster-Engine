@@ -110,7 +110,7 @@ static const Brush BRUSHES[] = {
 	{ 'E', "Guard", 'e', BRUSH_THING, SPR_ENEMY_STAND },
 	{ '+', "Medkit", '+', BRUSH_THING, SPR_HEALTH },
 	{ 'a', "Ammo", 'a', BRUSH_THING, SPR_AMMO },
-	{ 'b', "Barrel", 'b', BRUSH_THING, SPR_BARREL },
+	{ 'b', "Explosive barrel", 'b', BRUSH_THING, SPR_BARREL },
 	{ 'l', "Lamp", 'l', BRUSH_THING, SPR_LAMP },
 };
 enum { BRUSH_COUNT = sizeof(BRUSHES) / sizeof(BRUSHES[0]) };

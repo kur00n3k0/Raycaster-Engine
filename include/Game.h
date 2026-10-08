@@ -49,17 +49,25 @@ enum EnemyState : uint8_t {
 	ENEMY_DEAD
 };
 
+/* Barrels: shot (or caught in another blast), they burn for a moment, then blow up. */
+enum BarrelState : uint8_t {
+	BARREL_IDLE,
+	BARREL_FUSE,	/* bursting: the blast comes when the timer runs out */
+	BARREL_BLAST,	/* fireball; the damage was dealt as it started */
+	BARREL_SMOKE	/* fading out, then the barrel is gone */
+};
+
 /* Anything in the world that is drawn as a sprite. Spawned from map things. */
 struct Entity {
 	uint8_t type;		/* ThingType */
 	uint8_t sprite;		/* SpriteId to draw this frame */
-	uint8_t state;		/* EnemyState (enemies only) */
+	uint8_t state;		/* EnemyState (enemies) or BarrelState (barrels) */
 	bool active;		/* false once picked up: not drawn, not touched */
 	bool solid;		/* blocks movement */
 	glm::vec2 pos;
 	int health;		/* enemies */
 	int amount;		/* pickups: health or ammo given */
-	float timer;		/* time left in the current enemy state */
+	float timer;		/* time left in the current enemy or barrel state */
 	float cooldown;		/* enemies: time before the next attack */
 	float anim;		/* walk animation clock */
 };

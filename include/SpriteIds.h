@@ -21,7 +21,16 @@ enum SpriteId : uint8_t {
 	SPR_LAMP,
 	SPR_WEAPON_IDLE,	/* first-person pistol, drawn by the HUD */
 	SPR_WEAPON_FIRE,
+	SPR_EXPLODE1,		/* barrel bursting (fuse) */
+	SPR_EXPLODE2,		/* fireball */
+	SPR_EXPLODE3,		/* fading fire and smoke */
 	SPR_COUNT
 };
+
+/* Sprites that give off their own light: drawn without distance shading. */
+static inline bool sprite_fullbright(uint8_t id)
+{
+	return id >= SPR_EXPLODE1 && id <= SPR_EXPLODE3;
+}
 
 #endif

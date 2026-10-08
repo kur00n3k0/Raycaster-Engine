@@ -186,7 +186,8 @@ bool textures_load_sprites(SpriteTextures *sprites, const Palette *pal)
 {
 	static const char *const SPRITE_NAMES[SPR_COUNT] = {
 		"enemy_stand", "enemy_walk1", "enemy_walk2", "enemy_shoot", "enemy_pain", "enemy_dead",
-		"health", "ammo", "barrel", "lamp", "weapon_idle", "weapon_fire"
+		"health", "ammo", "barrel", "lamp", "weapon_idle", "weapon_fire",
+		"explode1", "explode2", "explode3"
 	};
 
 	memset(sprites, 0, sizeof(*sprites));

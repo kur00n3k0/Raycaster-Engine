@@ -36,6 +36,14 @@ static const int HEALTH_PICKUP = 25;
 static const int AMMO_PICKUP = 8;
 static const int AMMO_DROP = 4;
 
+/* Barrels: Doom's 128-damage blast, falling off linearly to nothing at the radius. */
+static const float BARREL_FUSE_TIME = 0.3f;	/* Doom: 15 tics from death to A_Explode */
+static const float BARREL_BLAST_TIME = 0.15f;
+static const float BARREL_SMOKE_TIME = 0.25f;
+static const float BLAST_RADIUS = 3.0f;		/* tiles from the barrel to the victim's edge */
+static const int BLAST_DAMAGE = 150;		/* point blank: kills a guard or a full-health player */
+static const float BLAST_HEARING = 12.0f;	/* idle guards this close wake up */
+
 /* Enemies */
 static const int ENEMY_HEALTH = 25;
 static const float ENEMY_SPEED = 1.5f;		/* tiles per second */
@@ -523,6 +531,89 @@ static void hurt_enemy(Game *game, Entity *e, int damage)
 }
 
 /* ------------------------------------------------------------------------- */
+/* Explosive barrels                                                         */
+/* ------------------------------------------------------------------------- */
+
+/* A bullet or a nearby blast lights the fuse. Only once: a burning barrel cannot be set off again. */
+static void ignite_barrel(Entity *e)
+{
+	if (!e->active || e->type != THING_BARREL || e->state != BARREL_IDLE)
+		return;
+	e->state = BARREL_FUSE;
+	e->timer = BARREL_FUSE_TIME;
+	e->sprite = SPR_EXPLODE1;
+}
+
+/*
+ * Blast damage at distance d from the centre to the victim's edge (Doom's
+ * P_RadiusAttack subtracts the radius too). Walls and closed doors shield.
+ */
+static int blast_damage(const Game *game, glm::vec2 centre, glm::vec2 pos, float radius)
+{
+	float d = glm::length(pos - centre) - radius;
+	if (d < 0.0f)
+		d = 0.0f;
+	if (d >= BLAST_RADIUS || !line_of_sight(game, centre, pos))
+		return 0;
+	return (int)((float)BLAST_DAMAGE * (1.0f - d / BLAST_RADIUS));
+}
+
+static void explode_barrel(Game *game, Entity *barrel)
+{
+	glm::vec2 centre = barrel->pos;
+	barrel->state = BARREL_BLAST;
+	barrel->timer = BARREL_BLAST_TIME;
+	barrel->sprite = SPR_EXPLODE2;
+	barrel->solid = false;
+	emit_sound(game, SFX_EXPLODE, centre);
+
+	for (int i = 0; i < game->entityCount; i++) {
+		Entity *e = &game->entities[i];
+		if (e == barrel || !e->active)
+			continue;
+		if (is_alive_enemy(e)) {
+			int damage = blast_damage(game, centre, e->pos, THING_RADIUS);
+			if (damage > 0) {
+				hurt_enemy(game, e, damage);
+				continue;
+			}
+			/* Out of reach but heard it. */
+			if (e->state == ENEMY_IDLE && glm::length(e->pos - centre) < BLAST_HEARING)
+				alert_enemy(game, e);
+		} else if (e->type == THING_BARREL && blast_damage(game, centre, e->pos, THING_RADIUS) > 0) {
+			ignite_barrel(e);		/* chain reaction, one fuse later */
+		}
+	}
+	if (!game->player.dead) {
+		int damage = blast_damage(game, centre, game->player.pos, PLAYER_RADIUS);
+		if (damage > 0)
+			hurt_player(game, damage);
+	}
+}
+
+static void update_barrel(Game *game, Entity *e)
+{
+	if (e->state == BARREL_IDLE)
+		return;
+	e->timer -= TICK;
+	if (e->timer > 0.0f)
+		return;
+	switch (e->state) {
+	case BARREL_FUSE:
+		explode_barrel(game, e);
+		break;
+	case BARREL_BLAST:
+		e->state = BARREL_SMOKE;
+		e->timer = BARREL_SMOKE_TIME;
+		e->sprite = SPR_EXPLODE3;
+		break;
+	default:
+		e->active = false;	/* nothing left, like Doom */
+		break;
+	}
+}
+
+/* ------------------------------------------------------------------------- */
 /* Player actions                                                            */
 /* ------------------------------------------------------------------------- */
 
@@ -561,7 +652,13 @@ static void player_use(Game *game)
 		complete_level(game);
 }
 
-/* Hitscan along the view direction: the nearest living enemy the ray passes close enough to. */
+/* Things a bullet can hit: living enemies and barrels that have not gone off yet. */
+static bool is_shootable(const Entity *e)
+{
+	return is_alive_enemy(e) || (e->active && e->type == THING_BARREL && e->state == BARREL_IDLE);
+}
+
+/* Hitscan along the view direction: the nearest enemy or barrel the ray passes close enough to. */
 static void player_fire(Game *game)
 {
 	Player *p = &game->player;
@@ -581,7 +678,7 @@ static void player_fire(Game *game)
 	float best = wallDist;
 	for (int i = 0; i < game->entityCount; i++) {
 		Entity *e = &game->entities[i];
-		if (!is_alive_enemy(e))
+		if (!is_shootable(e))
 			continue;
 		glm::vec2 rel = e->pos - p->pos;
 		float along = rel.x * dir.x + rel.y * dir.y;
@@ -591,7 +688,9 @@ static void player_fire(Game *game)
 			target = e;
 		}
 	}
-	if (target) {
+	if (target && target->type == THING_BARREL) {
+		ignite_barrel(target);
+	} else if (target) {
 		/* Point blank hurts more, like Wolf3D's distance-scaled damage. */
 		int damage = random_int(game, 8, 16) + (best < 2.0f ? 6 : 0);
 		hurt_enemy(game, target, damage);
@@ -976,8 +1075,11 @@ void game_tick(Game *game, const Input *input)
 	update_paths(game);
 
 	for (int i = 0; i < game->entityCount; i++) {
-		if (is_alive_enemy(&game->entities[i]))
+		Entity *e = &game->entities[i];
+		if (is_alive_enemy(e))
 			update_enemy(game, i);
+		else if (e->active && e->type == THING_BARREL)
+			update_barrel(game, e);
 	}
 
 	if (game->messageTime > 0.0f) {

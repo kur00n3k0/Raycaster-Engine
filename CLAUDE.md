@@ -259,7 +259,7 @@ and prove equivalence with a test before switching it on.
   colours. With `transparent`, pure magenta (255,0,255) becomes index 255 (for sprites).
 - `./build/raycaster [-config <path>] [-map <path>] [-warp <x> <y> <degrees>] [-nomusic]`: `-warp` starts at a fixed spot
   for deterministic screenshots, `-map` loads test maps (`assets/maps/test_pushwall.txt`,
-  `test_arena.txt`).
+  `test_arena.txt`, `test_barrels.txt`).
   Diff the `RC_USE_ASM=ON` and `OFF` builds (`magick compare -metric AE`), which
   must be 0 pixels apart.
 - World coordinates: x east, y south (map row 0 is north). Angle 0 = east, positive turns
@@ -308,6 +308,15 @@ and prove equivalence with a test before switching it on.
   HUD draws the tally in `draw_level_end`. Episode: e1m1 -> e1m2 (last). Editor: `X` brush,
   Next level combo (`MapDoc::next`, in undo), `cell_blocks` for walls + exit, missing/unreachable
   exit warnings, missing @next file is an error (the game would exit on it).
+- Explosive barrels (user request): `b` things are shootable (`is_shootable` in hitscan).
+  `Entity::state` is a `BarrelState`: IDLE -> FUSE (`SPR_EXPLODE1`, 0.3 s, like Doom's 15 tics
+  to A_Explode) -> BLAST (`explode_barrel`: `SFX_EXPLODE`, radius damage, `SPR_EXPLODE2`) ->
+  SMOKE (`SPR_EXPLODE3`) -> inactive. Damage follows Doom's P_RadiusAttack: `BLAST_DAMAGE`
+  (150) falling off linearly to 0 at `BLAST_RADIUS` (3 tiles) measured to the victim's edge,
+  only with `line_of_sight` (walls/closed doors shield). Kills guards within ~2.8 tiles, the
+  player point blank. Barrels in range ignite (chain, one fuse later); idle guards within
+  `BLAST_HEARING` wake. Explosion sprites are fullbright (`sprite_fullbright` in SpriteIds.h,
+  colormap 0 in Sprites.cpp). Test map: `assets/maps/test_barrels.txt`.
 - Background test processes ignore SIGINT (non-interactive `&`): stop the game/editor with
   `pkill -TERM -x raycaster` / `map_editor`, or stale windows get screenshotted.
 - See `README.txt` for the user-facing description.
