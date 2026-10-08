@@ -141,6 +141,7 @@ struct Game {
 	/* Breadth-first steps from the player's cell through open cells and doors, -1 = unreachable. */
 	int16_t *pathDist;
 	int *pathQueue;
+	uint8_t *thingBlock;	/* per cell: solid things standing there (barrels, props), kept out of paths */
 
 	const char *message;	/* HUD message line, null when none */
 	float messageTime;

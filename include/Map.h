@@ -66,6 +66,10 @@ enum ThingType : uint8_t {
 	THING_BARREL,	/* b */
 	THING_LAMP,	/* l */
 	THING_SMG,	/* m: submachine gun pickup */
+	THING_DESK,	/* k: gothic props, all solid */
+	THING_CHAIR,	/* c */
+	THING_CANDLES,	/* n: candelabrum */
+	THING_BOX,	/* o: iron-bound box */
 	THING_TYPE_COUNT
 };
 

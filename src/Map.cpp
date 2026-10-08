@@ -11,6 +11,7 @@ static bool tile_from_char(char c, uint8_t *tile)
 {
 	switch (c) {
 	case '.': case 'P': case 'E': case '+': case 'a': case 'b': case 'l': case 'm':
+	case 'k': case 'c': case 'n': case 'o':
 		*tile = TILE_EMPTY;
 		return true;
 	case '#':
@@ -44,6 +45,10 @@ static int thing_from_char(char c)
 	case 'b': return THING_BARREL;
 	case 'l': return THING_LAMP;
 	case 'm': return THING_SMG;
+	case 'k': return THING_DESK;
+	case 'c': return THING_CHAIR;
+	case 'n': return THING_CANDLES;
+	case 'o': return THING_BOX;
 	default:  return -1;
 	}
 }

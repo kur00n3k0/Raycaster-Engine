@@ -302,10 +302,26 @@ static bool line_of_sight(const Game *game, glm::vec2 from, glm::vec2 to)
 /* Pathfinding: breadth-first distance field from the player                 */
 /* ------------------------------------------------------------------------- */
 
-static bool cell_walkable(const Map *map, int x, int y)
+/*
+ * Enemies open doors, and walk around cells with a barrel or prop in them:
+ * a solid thing fills the middle of its cell, so a path through it would
+ * leave them pushing against it.
+ */
+static bool cell_walkable(const Game *game, int x, int y)
 {
+	const Map *map = &game->map;
 	uint8_t tile = map_tile(map, x, y);
-	return tile == TILE_EMPTY || tile == TILE_DOOR;	/* enemies open doors */
+	if (tile != TILE_EMPTY && tile != TILE_DOOR)
+		return false;
+	return game->thingBlock[y * map->width + x] == 0;
+}
+
+/* A solid map thing at pos starts (+1) or stops (-1) blocking its cell. */
+static void block_cell(Game *game, glm::vec2 pos, int delta)
+{
+	int x = cell_of(pos.x), y = cell_of(pos.y);
+	if (x >= 0 && y >= 0 && x < game->map.width && y < game->map.height)
+		game->thingBlock[y * game->map.width + x] += (uint8_t)delta;
 }
 
 static void update_paths(Game *game)
@@ -328,7 +344,7 @@ static void update_paths(Game *game)
 		int cx = cell % w, cy = cell / w;
 		for (int d = 0; d < 4; d++) {
 			int nx = cx + DX[d], ny = cy + DY[d];
-			if (!cell_walkable(map, nx, ny) || game->pathDist[ny * w + nx] >= 0)
+			if (!cell_walkable(game, nx, ny) || game->pathDist[ny * w + nx] >= 0)
 				continue;
 			game->pathDist[ny * w + nx] = (int16_t)(game->pathDist[cell] + 1);
 			game->pathQueue[tail++] = ny * w + nx;
@@ -587,6 +603,7 @@ static void explode_barrel(Game *game, Entity *barrel)
 	barrel->timer = BARREL_BLAST_TIME;
 	barrel->sprite = SPR_EXPLODE2;
 	barrel->solid = false;
+	block_cell(game, centre, -1);
 	emit_sound(game, SFX_EXPLODE, centre);
 
 	for (int i = 0; i < game->entityCount; i++) {
@@ -1017,7 +1034,8 @@ static void update_enemy(Game *game, int index)
 static void spawn_things(Game *game)
 {
 	static const uint8_t SPRITE_FOR_THING[THING_TYPE_COUNT] = {
-		SPR_ENEMY_STAND, SPR_HEALTH, SPR_AMMO, SPR_BARREL, SPR_LAMP, SPR_SMG_PICKUP
+		SPR_ENEMY_STAND, SPR_HEALTH, SPR_AMMO, SPR_BARREL, SPR_LAMP, SPR_SMG_PICKUP,
+		SPR_DESK, SPR_CHAIR, SPR_CANDLES, SPR_BOX
 	};
 
 	game->entityCount = 0;
@@ -1038,7 +1056,12 @@ static void spawn_things(Game *game)
 			game->enemiesTotal++;
 			break;
 		case THING_BARREL:
+		case THING_DESK:
+		case THING_CHAIR:
+		case THING_CANDLES:
+		case THING_BOX:
 			e->solid = true;
+			block_cell(game, e->pos, +1);
 			break;
 		case THING_HEALTH:
 			e->amount = HEALTH_PICKUP;
@@ -1069,6 +1092,7 @@ static bool load_level(Game *game, const char *mapPath)
 	size_t cells = (size_t)game->map.width * (size_t)game->map.height;
 	game->pathDist = (int16_t *)malloc(sizeof(int16_t) * cells);
 	game->pathQueue = (int *)malloc(sizeof(int) * cells);
+	game->thingBlock = (uint8_t *)calloc(cells, 1);
 
 	Player *p = &game->player;
 	p->pos = game->map.playerStart;
@@ -1140,8 +1164,10 @@ void game_shutdown(Game *game)
 	map_free(&game->map);
 	free(game->pathDist);
 	free(game->pathQueue);
+	free(game->thingBlock);
 	game->pathDist = nullptr;
 	game->pathQueue = nullptr;
+	game->thingBlock = nullptr;
 }
 
 /* Reload the level from scratch after death. */

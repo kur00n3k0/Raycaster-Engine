@@ -113,6 +113,10 @@ static const Brush BRUSHES[] = {
 	{ 'm', "Submachine gun", 'm', BRUSH_THING, SPR_SMG_PICKUP },
 	{ 'b', "Explosive barrel", 'b', BRUSH_THING, SPR_BARREL },
 	{ 'l', "Lamp", 'l', BRUSH_THING, SPR_LAMP },
+	{ 'k', "Desk", 'k', BRUSH_THING, SPR_DESK },
+	{ 'c', "Chair", 'c', BRUSH_THING, SPR_CHAIR },
+	{ 'n', "Candelabrum", 'n', BRUSH_THING, SPR_CANDLES },
+	{ 'o', "Box", 'o', BRUSH_THING, SPR_BOX },
 };
 enum { BRUSH_COUNT = sizeof(BRUSHES) / sizeof(BRUSHES[0]) };
 
@@ -1155,6 +1159,7 @@ static void draw_properties_window(Editor *ed)
 		row("Submachine guns", st->smgs);
 		row("Barrels", st->barrels);
 		row("Lamps", st->lamps);
+		row("Props", st->props);
 		row("Doors", st->doors);
 		row("Secret walls", st->secrets);
 		row("Exits", st->exits);

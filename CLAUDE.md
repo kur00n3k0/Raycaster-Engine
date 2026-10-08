@@ -259,7 +259,7 @@ and prove equivalence with a test before switching it on.
   colours. With `transparent`, pure magenta (255,0,255) becomes index 255 (for sprites).
 - `./build/raycaster [-config <path>] [-map <path>] [-warp <x> <y> <degrees>] [-nomusic]`: `-warp` starts at a fixed spot
   for deterministic screenshots, `-map` loads test maps (`assets/maps/test_pushwall.txt`,
-  `test_arena.txt`, `test_barrels.txt`).
+  `test_arena.txt`, `test_barrels.txt`, `test_props.txt`).
   Diff the `RC_USE_ASM=ON` and `OFF` builds (`magick compare -metric AE`), which
   must be 0 pixels apart.
 - World coordinates: x east, y south (map row 0 is north). Angle 0 = east, positive turns
@@ -329,6 +329,14 @@ and prove equivalence with a test before switching it on.
   `next_level` carries `weaponsOwned` and the weapon; death/episode restart resets to pistol.
   HUD ARMS panel between KILLS and AMMO. New weapon: add to `WeaponId`, `WEAPONS[]`, an action,
   HUD `FRAMES`, sprites (`SpriteIds.h` + `SPRITE_NAMES` + gen_textures).
+- Gothic props (user request): `k` desk, `c` chair, `n` candelabrum, `o` box (`THING_DESK..BOX`,
+  `SPR_DESK..BOX`, art in gen_textures: `lancet` arch, `quatrefoil`, `oak` helpers). All solid,
+  not shootable, not items. `SPR_CANDLES` is fullbright. `Game::thingBlock` counts solid map
+  things (barrels, props) per cell; `cell_walkable` keeps those cells out of the enemy BFS so
+  guards walk around them instead of pushing into them (a barrel unblocks its cell when it
+  explodes). Editor: `cell_is_prop`; the reach flood marks props reached but does not pass
+  through them, so a prop sealing a corridor shows as unreachable (barrels do not, they can be
+  shot away). Test map: `assets/maps/test_props.txt`.
 - Background test processes ignore SIGINT (non-interactive `&`): stop the game/editor with
   `pkill -TERM -x raycaster` / `map_editor`, or stale windows get screenshotted.
 - See `README.txt` for the user-facing description.

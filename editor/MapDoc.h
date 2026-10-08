@@ -59,7 +59,7 @@ struct Problem {
 };
 
 struct DocStats {
-	int enemies, health, ammo, smgs, barrels, lamps;
+	int enemies, health, ammo, smgs, barrels, lamps, props;
 	int doors, secrets, players, exits;
 	int errors, warnings;
 };
@@ -69,7 +69,12 @@ static inline bool cell_is_wall(char c) { return c == '#' || (c >= '1' && c <= '
 static inline bool cell_is_exit(char c) { return c == 'X'; }
 /* Blocks walking: walls and the exit door (doors and secret walls open). */
 static inline bool cell_blocks(char c) { return cell_is_wall(c) || cell_is_exit(c); }
-static inline bool cell_is_thing(char c) { return c == 'E' || c == '+' || c == 'a' || c == 'm' || c == 'b' || c == 'l'; }
+/* Gothic props: desk, chair, candelabrum, box. Solid, and unlike barrels they cannot be shot away. */
+static inline bool cell_is_prop(char c) { return c == 'k' || c == 'c' || c == 'n' || c == 'o'; }
+static inline bool cell_is_thing(char c)
+{
+	return c == 'E' || c == '+' || c == 'a' || c == 'm' || c == 'b' || c == 'l' || cell_is_prop(c);
+}
 /* Non-empty tile in the game's sense: walls, doors, secret walls. */
 static inline bool cell_is_solid(char c) { return cell_blocks(c) || c == 'D' || c == 'S'; }
 bool cell_is_valid(char c);

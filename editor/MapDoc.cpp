@@ -348,6 +348,7 @@ void doc_validate(const MapDoc *doc, std::vector<Problem> *problems, DocStats *s
 			case 'm': stats->smgs++; break;
 			case 'b': stats->barrels++; break;
 			case 'l': stats->lamps++; break;
+			case 'k': case 'c': case 'n': case 'o': stats->props++; break;
 			case 'S': stats->secrets++; break;
 			case 'X': stats->exits++; break;
 			case 'P':
@@ -366,7 +367,8 @@ void doc_validate(const MapDoc *doc, std::vector<Problem> *problems, DocStats *s
 		}
 	}
 
-	int things = stats->enemies + stats->health + stats->ammo + stats->smgs + stats->barrels + stats->lamps;
+	int things = stats->enemies + stats->health + stats->ammo + stats->smgs + stats->barrels + stats->lamps
+		+ stats->props;
 	if (stats->players == 0)
 		add(problems, -1, -1, true, "No player start (P)");
 	if (stats->players > 1)
@@ -390,7 +392,11 @@ void doc_validate(const MapDoc *doc, std::vector<Problem> *problems, DocStats *s
 			add(problems, -1, -1, false, "Music %s not found: the map will be silent", path);
 	}
 
-	/* Reachability: flood from the start through everything that is not plain wall. */
+	/*
+	 * Reachability: flood from the start through everything that is not plain
+	 * wall. Props are reached but not walked through: one in a corridor cuts
+	 * off what lies behind it. Barrels can be shot away, so they do not.
+	 */
 	reach->assign((size_t)w * (size_t)h, 0);
 	if (stats->players == 1) {
 		std::vector<int> stack;
@@ -409,7 +415,8 @@ void doc_validate(const MapDoc *doc, std::vector<Problem> *problems, DocStats *s
 				if ((*reach)[(size_t)n])
 					continue;
 				(*reach)[(size_t)n] = 1;
-				stack.push_back(n);
+				if (!cell_is_prop(doc_get(doc, nx, ny)))
+					stack.push_back(n);
 			}
 		}
 		for (int y = 0; y < h; y++) {
@@ -418,7 +425,8 @@ void doc_validate(const MapDoc *doc, std::vector<Problem> *problems, DocStats *s
 				if (cell_is_thing(c) && !(*reach)[(size_t)(y * w + x)])
 					add(problems, x, y, false, "%s cannot be reached from the start",
 						c == 'E' ? "Guard" : c == '+' ? "Medkit" : c == 'a' ? "Ammo"
-						: c == 'm' ? "Submachine gun" : c == 'b' ? "Barrel" : "Lamp");
+						: c == 'm' ? "Submachine gun" : c == 'b' ? "Barrel" : c == 'l' ? "Lamp"
+						: c == 'k' ? "Desk" : c == 'c' ? "Chair" : c == 'n' ? "Candelabrum" : "Box");
 			}
 		}
 	}

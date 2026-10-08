@@ -587,6 +587,158 @@ static void spr_smg_pickup(Image img)
 	outline(img);
 }
 
+/* ------------------------------------------------------------------------- */
+/* Gothic props                                                              */
+/* ------------------------------------------------------------------------- */
+
+/*
+ * Equilateral pointed (lancet) arch, the shape of every gothic window: two
+ * arcs of radius w struck from the springing line at y = spring, centred on
+ * the opposite jambs, then straight jambs down to bottom.
+ */
+static void lancet(Image img, int cx, int spring, int w, int bottom, uint8_t c)
+{
+	float half = (float)w * 0.5f;
+	int top = spring - (int)((float)w * 0.8660254f);
+	for (int y = top; y < bottom; y++)
+		for (int x = cx - w / 2; x < cx + w - w / 2; x++) {
+			if (x < 0 || x >= SIZE || y < 0 || y >= SIZE)
+				continue;
+			float fx = (float)x + 0.5f, fy = (float)y + 0.5f;
+			if (fy < (float)spring) {
+				float dl = fx - ((float)cx - half), dr = fx - ((float)cx + half), dy = fy - (float)spring;
+				float r2 = (float)(w * w);
+				if (dl * dl + dy * dy > r2 || dr * dr + dy * dy > r2)
+					continue;
+			}
+			img[y][x] = c;
+		}
+}
+
+/* Quatrefoil: four overlapping lobes, the gothic tracery motif. */
+static void quatrefoil(Image img, int cx, int cy, int r, uint8_t c)
+{
+	ellipse(img, cx - r / 2, cy, r / 2 + 1, r / 2 + 1, c);
+	ellipse(img, cx + r / 2, cy, r / 2 + 1, r / 2 + 1, c);
+	ellipse(img, cx, cy - r / 2, r / 2 + 1, r / 2 + 1, c);
+	ellipse(img, cx, cy + r / 2, r / 2 + 1, r / 2 + 1, c);
+}
+
+/* Dark oak with a faint vertical grain. */
+static void oak(Image img, int x0, int y0, int x1, int y1, int shade, uint32_t seed)
+{
+	for (int y = y0; y < y1; y++)
+		for (int x = x0; x < x1; x++)
+			img[y][x] = col(2, shade + noise(x, y / 5, seed, 1));
+}
+
+/* A candle flame: white core, yellow, orange tip. */
+static void flame(Image img, int cx, int base)
+{
+	ellipse(img, cx, base - 4, 2, 4, col(2, 13));
+	ellipse(img, cx, base - 3, 1, 3, col(3, 15));
+	rect(img, cx, base - 3, cx + 1, base, col(0, 15));
+	rect(img, cx, base - 9, cx + 1, base - 7, col(2, 11));
+}
+
+/* Writing desk of carved dark oak: three lancet panels, an open book and a skull on top. */
+static void spr_desk(Image img)
+{
+	clear(img);
+	oak(img, 8, 36, 56, 60, 4, 170);			/* carcass */
+	for (int i = 0; i < 3; i++) {
+		int cx = 17 + i * 15;
+		lancet(img, cx, 45, 11, 57, col(2, 6));		/* moulding */
+		lancet(img, cx, 46, 7, 56, col(2, 1));		/* recessed panel */
+	}
+	oak(img, 8, 58, 56, 60, 6, 171);			/* plinth */
+	rect(img, 9, 60, 14, 64, col(2, 3));			/* feet */
+	rect(img, 50, 60, 55, 64, col(2, 3));
+	oak(img, 5, 32, 59, 36, 7, 172);			/* top, overhanging */
+	rect(img, 5, 32, 59, 33, col(2, 9));
+	rect(img, 12, 29, 20, 32, col(0, 13));			/* open book */
+	rect(img, 20, 29, 28, 32, col(0, 12));
+	rect(img, 19, 29, 21, 32, col(1, 4));			/* spine / ribbon */
+	rect(img, 13, 30, 18, 31, col(0, 7));			/* lines of text */
+	rect(img, 22, 30, 27, 31, col(0, 6));
+	ellipse(img, 45, 27, 5, 4, col(0, 12));			/* skull */
+	rect(img, 42, 30, 49, 33, col(0, 11));			/* jaw */
+	rect(img, 42, 26, 44, 28, col(0, 1));			/* eye sockets */
+	rect(img, 46, 26, 48, 28, col(0, 1));
+	rect(img, 45, 29, 46, 30, col(0, 3));			/* nose */
+	outline(img);
+}
+
+/* High-backed chair like a choir stall: spired posts, lancet back in red velvet. */
+static void spr_chair(Image img)
+{
+	clear(img);
+	lancet(img, 32, 22, 22, 44, col(2, 4));			/* back frame */
+	lancet(img, 32, 24, 14, 41, col(1, 5));			/* velvet */
+	for (int y = 26; y < 41; y += 4)
+		rect(img, 27, y, 37, y + 1, col(1, 3));		/* buttoned tufts */
+	quatrefoil(img, 32, 15, 4, col(2, 2));			/* pierced tracery */
+	for (int side = 0; side < 2; side++) {
+		int x = side ? 43 : 18;
+		oak(img, x, 6, x + 4, 64, 5, 180 + side);		/* posts */
+		rect(img, x + 1, 0, x + 3, 6, col(2, 6));		/* spire */
+		rect(img, x, 4, x + 4, 6, col(2, 7));			/* crocket */
+		ellipse(img, x + 2, 20, 2, 1, col(2, 7));		/* knop */
+	}
+	oak(img, 16, 43, 48, 47, 6, 182);			/* seat rail */
+	rect(img, 16, 41, 48, 43, col(1, 7));			/* seat cushion */
+	rect(img, 22, 47, 42, 49, col(2, 3));			/* apron */
+	lancet(img, 32, 50, 8, 52, col(2, 3));			/* apron arch */
+	outline(img);
+}
+
+/* Wrought-iron candelabrum on three feet, five lit candles. Fullbright in game. */
+static void spr_candles(Image img)
+{
+	clear(img);
+	rect(img, 22, 62, 42, 64, col(0, 3));			/* feet */
+	rect(img, 26, 58, 38, 62, col(0, 4));
+	rect(img, 31, 22, 33, 58, col(0, 5));			/* shaft */
+	ellipse(img, 32, 50, 3, 2, col(0, 6));			/* knops */
+	ellipse(img, 32, 36, 2, 2, col(0, 6));
+	rect(img, 14, 26, 50, 28, col(0, 4));			/* arms */
+	rect(img, 20, 20, 44, 22, col(0, 4));
+	static const int CANDLE_X[5] = { 15, 22, 32, 42, 49 };
+	static const int CANDLE_TOP[5] = { 18, 13, 8, 13, 18 };
+	static const int CANDLE_BASE[5] = { 26, 20, 20, 20, 26 };
+	for (int i = 0; i < 5; i++) {
+		int x = CANDLE_X[i];
+		rect(img, x - 2, CANDLE_BASE[i] - 1, x + 3, CANDLE_BASE[i] + 1, col(0, 6));	/* drip pan */
+		rect(img, x - 1, CANDLE_TOP[i], x + 2, CANDLE_BASE[i] - 1, col(0, 13));	/* wax */
+		rect(img, x - 1, CANDLE_TOP[i], x, CANDLE_BASE[i] - 1, col(0, 14));
+		rect(img, x + 1, CANDLE_TOP[i] + 2, x + 2, CANDLE_TOP[i] + 5, col(0, 15));	/* drip */
+		flame(img, x, CANDLE_TOP[i]);
+	}
+	outline(img);
+}
+
+/* Oak box bound in black iron, a quatrefoil boss on the front. */
+static void spr_box(Image img)
+{
+	clear(img);
+	oak(img, 12, 34, 52, 64, 6, 190);
+	for (int y = 40; y < 64; y += 8)
+		rect(img, 12, y, 52, y + 1, col(2, 3));		/* plank seams */
+	rect(img, 12, 34, 52, 37, col(0, 4));			/* iron rim */
+	for (int side = 0; side < 2; side++) {
+		int x = side ? 44 : 16;
+		rect(img, x, 34, x + 4, 64, col(0, 4));		/* straps */
+		for (int y = 39; y < 64; y += 6)
+			rect(img, x + 1, y, x + 3, y + 1, col(0, 9));	/* rivets */
+	}
+	rect(img, 12, 34, 15, 41, col(0, 3));			/* corner brackets */
+	rect(img, 49, 34, 52, 41, col(0, 3));
+	quatrefoil(img, 32, 49, 7, col(0, 4));			/* boss */
+	quatrefoil(img, 32, 49, 3, col(0, 8));
+	rect(img, 31, 48, 33, 50, col(0, 1));
+	outline(img);
+}
+
 /* Rusty green oil drum, shaded as a cylinder. */
 static void spr_barrel(Image img)
 {
@@ -764,6 +916,10 @@ int main()
 		{ "assets/sprites/smg_idle.pcx", spr_smg_idle },
 		{ "assets/sprites/smg_fire.pcx", spr_smg_fire },
 		{ "assets/sprites/smg_pickup.pcx", spr_smg_pickup },
+		{ "assets/sprites/desk.pcx", spr_desk },
+		{ "assets/sprites/chair.pcx", spr_chair },
+		{ "assets/sprites/candles.pcx", spr_candles },
+		{ "assets/sprites/box.pcx", spr_box },
 	};
 
 	for (const Entry &e : entries) {

@@ -188,7 +188,8 @@ bool textures_load_sprites(SpriteTextures *sprites, const Palette *pal)
 		"enemy_stand", "enemy_walk1", "enemy_walk2", "enemy_shoot", "enemy_pain", "enemy_dead",
 		"health", "ammo", "barrel", "lamp", "weapon_idle", "weapon_fire",
 		"explode1", "explode2", "explode3",
-		"fists_idle", "fists_punch", "smg_idle", "smg_fire", "smg_pickup"
+		"fists_idle", "fists_punch", "smg_idle", "smg_fire", "smg_pickup",
+		"desk", "chair", "candles", "box"
 	};
 
 	memset(sprites, 0, sizeof(*sprites));

@@ -29,13 +29,17 @@ enum SpriteId : uint8_t {
 	SPR_SMG_IDLE,		/* first-person submachine gun */
 	SPR_SMG_FIRE,
 	SPR_SMG_PICKUP,		/* submachine gun lying on the floor (map thing 'm') */
+	SPR_DESK,		/* gothic props */
+	SPR_CHAIR,
+	SPR_CANDLES,
+	SPR_BOX,
 	SPR_COUNT
 };
 
 /* Sprites that give off their own light: drawn without distance shading. */
 static inline bool sprite_fullbright(uint8_t id)
 {
-	return id >= SPR_EXPLODE1 && id <= SPR_EXPLODE3;
+	return (id >= SPR_EXPLODE1 && id <= SPR_EXPLODE3) || id == SPR_CANDLES;
 }
 
 #endif

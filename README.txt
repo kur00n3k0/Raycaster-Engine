@@ -49,7 +49,10 @@ You start with 100% health and 12 bullets.
   A dead guard drops a few bullets.
 
   Medkits (+25%) and ammo boxes (+8) are picked up by walking over them,
-  but only if you need them. Barrels and guards block your way.
+  but only if you need them. Barrels and guards block your way, and so
+  does the gothic furniture: carved oak desks, high-backed chairs,
+  iron candelabra (their candles light themselves, even in the dark)
+  and iron-bound boxes. Guards walk around it.
 
   The green barrels are explosive. Shoot one and it bursts into flames,
   then blows up a moment later. The blast kills every guard within about
@@ -134,6 +137,7 @@ RUNNING
     ./build/raycaster -map assets/maps/test_pushwall.txt
     ./build/raycaster -map assets/maps/test_arena.txt
     ./build/raycaster -map assets/maps/test_barrels.txt
+    ./build/raycaster -map assets/maps/test_props.txt
 
   Play without music:
     ./build/raycaster -nomusic
@@ -179,7 +183,8 @@ Tools:
 
 Brushes (the same characters as the map file):
   1-9 walls, D door, X exit, S secret wall, . floor, P player start,
-  E guard, + medkit, a ammo, m submachine gun, b explosive barrel, l lamp
+  E guard, + medkit, a ammo, m submachine gun, b explosive barrel, l lamp,
+  k desk, c chair, n candelabrum, o box
 
 Keys:
   Ctrl+N / Ctrl+O / Ctrl+S   new / open / save   (Ctrl+Shift+S: save as)
@@ -262,6 +267,7 @@ FEATURES (ROADMAP)
       episode of two floors
   [x] Explosive barrels: radius damage, chain reactions
   [x] Weapons: fists, pistol, submachine gun
+  [x] Gothic props: desk, chair, candelabrum, box
 
 
 DIRECTORY LAYOUT
@@ -288,6 +294,8 @@ Maps are plain text files. Each character is one grid cell:
   a  ammo              b    explosive barrel
   l  hanging lamp     X    exit door (use it to finish the level)
   m  submachine gun
+  k  desk              c    chair
+  n  candelabrum       o    box
 
   The outer border must be solid wall (not a door or secret wall) so rays
   always hit something. A door needs walls on exactly two opposite sides;
